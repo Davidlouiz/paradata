@@ -106,13 +106,8 @@ const API = {
         return res;
     },
 
-    async createMapObject(geometry, dangerTypeId, severity, description) {
-        const res = await this.request('POST', '/map-objects', {
-            geometry,
-            danger_type_id: dangerTypeId,
-            severity,
-            description,
-        });
+    async createMapObject(payload) {
+        const res = await this.request('POST', '/map-objects', payload);
         return res;
     },
 

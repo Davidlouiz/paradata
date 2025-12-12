@@ -8,16 +8,19 @@ def get_daily_usage(user_id: int) -> int:
     """Get number of creations/modifications by user today."""
     conn = get_db()
     cursor = conn.cursor()
-    
+
     today = str(date.today())
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT count FROM daily_quota 
         WHERE user_id = ? AND date = ?
-    """, (user_id, today))
-    
+    """,
+        (user_id, today),
+    )
+
     row = cursor.fetchone()
     conn.close()
-    
+
     return row[0] if row else 0
 
 
@@ -31,23 +34,41 @@ def increment_daily_quota(user_id: int):
     """Increment user's daily usage."""
     conn = get_db()
     cursor = conn.cursor()
-    
+
     today = str(date.today())
-    
-    # Try to increment existing record
-    cursor.execute("""
+
+    # Try to increment existing record, or insert if it doesn't exist
+    # Using UPSERT pattern: attempt update first, insert if nothing was updated
+    cursor.execute(
+        """
         UPDATE daily_quota 
         SET count = count + 1
         WHERE user_id = ? AND date = ?
-    """, (user_id, today))
-    
+    """,
+        (user_id, today),
+    )
+
+    # If no rows were updated, the record doesn't exist, so insert it
     if cursor.rowcount == 0:
-        # Insert new record
-        cursor.execute("""
-            INSERT INTO daily_quota (user_id, date, count)
-            VALUES (?, ?, 1)
-        """, (user_id, today))
-    
+        try:
+            cursor.execute(
+                """
+                INSERT INTO daily_quota (user_id, date, count)
+                VALUES (?, ?, 1)
+            """,
+                (user_id, today),
+            )
+        except Exception:
+            # If insert fails (race condition), try update again
+            cursor.execute(
+                """
+                UPDATE daily_quota 
+                SET count = count + 1
+                WHERE user_id = ? AND date = ?
+            """,
+                (user_id, today),
+            )
+
     conn.commit()
     conn.close()
 

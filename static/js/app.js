@@ -36,8 +36,14 @@ const APP = (() => {
         setupStateListener();
         setupEventHandlers();
 
-        // Initialiser l'affichage utilisateur
+        // Appliquer l'état initial immédiatement (afficher toolbar si authentifié)
         const initialState = AppState.getState();
+        const toolbar = document.getElementById('toolbar');
+        if (toolbar) {
+            toolbar.style.display = initialState.isAuthenticated ? 'flex' : 'none';
+        }
+
+        // Initialiser l'affichage utilisateur
         UI.updateUserDisplay(initialState.currentUser);
 
         // Rafraîchir les objets de la carte toutes les 5 secondes (fallback WebSocket)
@@ -128,6 +134,18 @@ const APP = (() => {
     }
 
     /**
+     * Obtenir la couleur d'une sévérité
+     */
+    function getColorBySeverity(severity) {
+        if (severity === 'CRITICAL') return '#d32f2f';
+        if (severity === 'HIGH_RISK') return '#f57c00';
+        if (severity === 'RISK') return '#fbc02d';
+        if (severity === 'LOW_RISK') return '#7cb342';
+        if (severity === 'SAFE') return '#388e3c';
+        return '#999'; // Par défaut
+    }
+
+    /**
      * Charger les objets de la carte dans la région visible
      */
     async function loadMapObjects() {
@@ -153,12 +171,34 @@ const APP = (() => {
     function renderMapObjects(objects) {
         const state = AppState.getState();
 
-        // Effacer les couches non sélectionnées
+        // Si on est en édition, ne pas recharger le polygone en cours d'édition
+        if (state.mode === 'EDIT') {
+            // Mettre à jour SEULEMENT les autres polygones
+            const editingObjectId = state.selectedObjectId;
+            const objectsToUpdate = objects.filter(obj => obj.id !== editingObjectId);
+
+            // Supprimer les couches non éditées qui ne sont plus dans les données
+            Object.keys(mapLayers).forEach((id) => {
+                const intId = parseInt(id);
+                if (intId !== editingObjectId && !objectsToUpdate.find(obj => obj.id === intId)) {
+                    map.removeLayer(mapLayers[id]);
+                    delete mapLayers[id];
+                }
+            });
+
+            // Ajouter/mettre à jour les autres polygones
+            objectsToUpdate.forEach((obj) => {
+                if (!mapLayers[obj.id]) {
+                    renderMapObject(obj);
+                }
+            });
+            return; // Arrêter ici, ne pas recharger l'objet en édition
+        }
+
+        // Mode normal : Effacer toutes les couches et rafraîchir
         Object.keys(mapLayers).forEach((id) => {
-            if (parseInt(id) !== state.selectedObjectId) {
-                map.removeLayer(mapLayers[id]);
-                delete mapLayers[id];
-            }
+            map.removeLayer(mapLayers[id]);
+            delete mapLayers[id];
         });
 
         // Ajouter les nouvelles couches
@@ -200,12 +240,7 @@ const APP = (() => {
         const isLocked = obj.locked_by;
         const severity = obj.severity;
 
-        let color = '#999'; // Par défaut
-        if (severity === 'CRITICAL') color = '#d32f2f';
-        else if (severity === 'HIGH_RISK') color = '#f57c00';
-        else if (severity === 'RISK') color = '#fbc02d';
-        else if (severity === 'LOW_RISK') color = '#7cb342';
-        else if (severity === 'SAFE') color = '#388e3c';
+        const color = getColorBySeverity(severity);
 
         return {
             color: isSelected ? '#000' : color,
@@ -222,16 +257,19 @@ const APP = (() => {
     function selectPolygon(obj, layer) {
         const state = AppState.getState();
 
-        // Déselectionner le précédent
-        if (state.selectedObjectId) {
+        // Sélectionner le nouveau AVANT de mettre à jour les anciens styles
+        // pour que getPolygonStyle() reflète la nouvelle sélection
+        AppState.selectObject(obj);
+
+        // Maintenant, mettre à jour le style de l'ancien sélectionné
+        if (state.selectedObjectId && state.selectedObjectId !== obj.id) {
             const oldLayer = mapLayers[state.selectedObjectId];
             if (oldLayer) {
                 oldLayer.setStyle(getPolygonStyle(oldLayer.objData));
             }
         }
 
-        // Sélectionner le nouveau
-        AppState.selectObject(obj);
+        // Appliquer le style du nouveau sélectionné
         layer.setStyle(getPolygonStyle(obj));
 
         // Afficher le panneau détails
@@ -317,6 +355,14 @@ const APP = (() => {
             btnCancel.addEventListener('click', cancelEdit);
         }
 
+        // Écouter les changements de sévérité pour mettre à jour la couleur du polygone en édition
+        const formSeverity = document.getElementById('form-severity');
+        if (formSeverity) {
+            formSeverity.addEventListener('change', (e) => {
+                DRAW.updateEditingPolygonColor(e.target.value);
+            });
+        }
+
         // Fermer le drawer en cliquant sur le fond de la carte
         map.on('click', (e) => {
             if (e.originalEvent.target.id === 'map') {
@@ -388,9 +434,23 @@ const APP = (() => {
             DRAW.clearDrawnLayers();
             DRAW.startEditMode(obj);
 
+            // Retirer le polygone original de la carte pour ne pas gêner l'édition
+            if (mapLayers[obj.id]) {
+                const layer = mapLayers[obj.id];
+                map.removeLayer(layer);
+                // Marquer comme caché pour pouvoir le restaurer plus tard
+                layer._isHidden = true;
+            }
+
             // Afficher le formulaire pré-rempli
             UI.showDrawerForm(obj);
             UI.showSaveCancel();
+
+            // Mettre à jour la couleur du polygone selon la sévérité du formulaire
+            const formSeverity = document.getElementById('form-severity');
+            if (formSeverity && formSeverity.value) {
+                DRAW.updateEditingPolygonColor(formSeverity.value);
+            }
 
             // Afficher le badge de verrou avec timer
             startLockTimer();
@@ -470,17 +530,29 @@ const APP = (() => {
                 });
                 UI.notify('Polygone mis à jour!', 'success');
                 console.log('Object updated:', res.data);
-
-                // Libérer le verrou
-                await API.releaseObject(state.selectedObjectId);
+                // Note: Le verrou est automatiquement libéré par l'update
             }
 
             // Nettoyer et revenir au mode VIEW
             cancelEdit();
+            AppState.deselectObject();
+            UI.closeDrawer();
             await loadMapObjects();
         } catch (err) {
-            UI.notify(`Erreur lors de l'enregistrement: ${err.message}`, 'error');
             console.error('Error saving polygon:', err);
+            let errorMessage = 'Erreur inconnue';
+
+            if (err.message && typeof err.message === 'string') {
+                errorMessage = err.message;
+            } else if (err.data && err.data.detail) {
+                errorMessage = typeof err.data.detail === 'string'
+                    ? err.data.detail
+                    : JSON.stringify(err.data.detail);
+            } else if (typeof err === 'string') {
+                errorMessage = err;
+            }
+
+            UI.notify(`Erreur lors de l'enregistrement: ${errorMessage}`, 'error');
         }
     }
 
@@ -497,7 +569,15 @@ const APP = (() => {
 
             await API.deleteMapObject(state.selectedObjectId);
             UI.notify('Polygone supprimé!', 'success');
+
+            // Si on était en mode EDIT, nettoyer les couches d'édition
+            if (state.mode === 'EDIT') {
+                DRAW.clearDrawnLayers();
+                DRAW.stopDrawMode();
+            }
+
             AppState.deselectObject();
+            UI.closeDrawer();
             await loadMapObjects();
         } catch (err) {
             UI.notify(`Erreur lors de la suppression: ${err.message}`, 'error');
@@ -511,8 +591,8 @@ const APP = (() => {
     async function cancelEdit() {
         const state = AppState.getState();
 
-        // Si en édition, libérer le verrou
-        if (state.mode === 'EDIT' && state.selectedObjectId) {
+        // Si en édition, libérer le verrou (sauf si déjà libéré par update)
+        if (state.mode === 'EDIT' && state.selectedObjectId && state.lockStatus.locked) {
             try {
                 await API.releaseObject(state.selectedObjectId);
             } catch (err) {
@@ -523,17 +603,22 @@ const APP = (() => {
         // Nettoyer l'état
         AppState.setViewMode();
         DRAW.stopDrawMode();
+        DRAW.clearDrawnLayers();
         UI.hideSaveCancel();
         UI.hideLockBadge();
         UI.updateDrawStatus('');
 
-        // Maintenir la sélection si elle existe, mais désactiver l'édition
-        const remainingState = AppState.getState();
-        if (remainingState.selectedObjectId) {
-            // Le polygone reste sélectionné mais pas en édition
-            document.getElementById('drawer').classList.add('open');
-            loadMapObjects(); // Rafraîchir le style
-        }
+        // Restaurer les polygones cachés
+        Object.keys(mapLayers).forEach((id) => {
+            const layer = mapLayers[id];
+            if (layer._isHidden) {
+                map.addLayer(layer);
+                layer._isHidden = false;
+            }
+        });
+
+        // Recharger pour restaurer les styles des polygones
+        await loadMapObjects();
     }
 
     // API publique
