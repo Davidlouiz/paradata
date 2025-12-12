@@ -140,4 +140,9 @@ const API = {
         const res = await this.request('GET', `/map-objects/${id}/lock`);
         return res;
     },
+
+    async getDangerTypes() {
+        const res = await this.request('GET', '/danger-types');
+        return res;
+    },
 };

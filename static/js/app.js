@@ -23,6 +23,9 @@ const APP = (() => {
         // Initialiser les modules
         DRAW.init(map);
 
+        // Charger les types de danger
+        await loadDangerTypes();
+
         // Vérifier l'authentification
         await checkAuth();
 
@@ -52,6 +55,37 @@ const APP = (() => {
             AppState.setCurrentUser(user);
         } catch (err) {
             AppState.setCurrentUser(null);
+        }
+    }
+
+    /**
+     * Charger les types de danger et peupler le select
+     */
+    async function loadDangerTypes() {
+        try {
+            const res = await API.getDangerTypes();
+            const types = res.data;
+
+            const select = document.getElementById('form-danger-type');
+            if (select) {
+                // Vider les options existantes sauf la première
+                while (select.options.length > 1) {
+                    select.remove(1);
+                }
+
+                // Ajouter les types de danger
+                types.forEach(type => {
+                    const option = document.createElement('option');
+                    option.value = type.id;
+                    option.textContent = type.name;
+                    option.title = type.description;
+                    select.appendChild(option);
+                });
+
+                console.log(`${types.length} danger types loaded`);
+            }
+        } catch (err) {
+            console.error('Error loading danger types:', err);
         }
     }
 
