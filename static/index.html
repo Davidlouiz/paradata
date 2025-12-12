@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alerte Parapente – Éditeur Collaboratif de Carte</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- App CSS -->
+    <link rel="stylesheet" href="/assets/css/style.css">
+</head>
+
+<body>
+    <!-- Map container (full screen) -->
+    <div id="map"></div>
+
+    <!-- Top bar -->
+    <div class="top-bar">
+        <div class="top-bar-left">
+            <h1>🪂 Alerte Parapente</h1>
+        </div>
+        <div class="top-bar-center">
+            <span id="status-indicator" class="status-indicator">Lecture seule</span>
+        </div>
+        <div class="top-bar-right">
+            <span id="user-display"></span>
+            <button id="auth-btn" class="btn btn-primary">Se connecter</button>
+        </div>
+    </div>
+
+    <!-- Toolbar (for authenticated users) -->
+    <div id="toolbar" class="toolbar" style="display: none;">
+        <button id="btn-create" class="btn btn-success" title="Créer un polygone">
+            ➕ Créer
+        </button>
+        <button id="btn-edit" class="btn btn-info" disabled title="Éditer le polygone sélectionné">
+            ✏️ Éditer
+        </button>
+        <button id="btn-delete" class="btn btn-danger" disabled title="Supprimer le polygone sélectionné">
+            🗑️ Supprimer
+        </button>
+        <div class="toolbar-separator"></div>
+        <button id="btn-save" class="btn btn-success" style="display: none;" title="Enregistrer les modifications">
+            💾 Enregistrer
+        </button>
+        <button id="btn-cancel" class="btn btn-secondary" style="display: none;" title="Annuler les modifications">
+            ❌ Annuler
+        </button>
+        <span id="toolbar-status" class="toolbar-status"></span>
+    </div>
+
+    <!-- Right drawer (details/edit panel) -->
+    <div id="drawer" class="drawer">
+        <div class="drawer-header">
+            <h2 id="drawer-title">Détails</h2>
+            <button class="btn-close" id="btn-close-drawer">&times;</button>
+        </div>
+        <div class="drawer-content">
+            <!-- Details mode -->
+            <div id="drawer-details" class="drawer-section" style="display: none;">
+                <div class="info-row">
+                    <label>ID:</label>
+                    <span id="info-id"></span>
+                </div>
+                <div class="info-row">
+                    <label>Type de danger:</label>
+                    <span id="info-danger-type"></span>
+                </div>
+                <div class="info-row">
+                    <label>Dangerosité:</label>
+                    <span id="info-severity"></span>
+                </div>
+                <div class="info-row">
+                    <label>Description:</label>
+                    <p id="info-description"></p>
+                </div>
+                <div class="info-row">
+                    <label>Créé par:</label>
+                    <span id="info-author"></span>
+                </div>
+                <div class="info-row">
+                    <label>Date:</label>
+                    <span id="info-date"></span>
+                </div>
+                <div id="lock-info" class="info-row lock-warning" style="display: none;">
+                    <span id="lock-message"></span>
+                </div>
+            </div>
+
+            <!-- Edit mode -->
+            <form id="drawer-form" class="drawer-section" style="display: none;">
+                <div class="form-group">
+                    <label for="form-danger-type">Type de danger:</label>
+                    <select id="form-danger-type" required>
+                        <option value="">-- Sélectionner --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="form-severity">Dangerosité:</label>
+                    <select id="form-severity" required>
+                        <option value="">-- Sélectionner --</option>
+                        <option value="SAFE">SAFE – Aucun danger</option>
+                        <option value="LOW_RISK">LOW_RISK – Danger faible</option>
+                        <option value="RISK">RISK – Danger significatif</option>
+                        <option value="HIGH_RISK">HIGH_RISK – Danger sérieux</option>
+                        <option value="CRITICAL">CRITICAL – Danger vital</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="form-description">Description:</label>
+                    <textarea id="form-description" maxlength="500" rows="4"
+                        placeholder="Détails du danger..."></textarea>
+                    <small id="char-count">0/500</small>
+                </div>
+            </form>
+
+            <!-- No selection -->
+            <div id="drawer-empty" class="drawer-section" style="text-align: center; color: #999;">
+                <p>Sélectionnez un polygone sur la carte</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login modal -->
+    <div id="login-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <button class="btn-close" id="btn-close-auth">&times;</button>
+            <h2>Authentification</h2>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="login-username">Nom d'utilisateur:</label>
+                    <input type="text" id="login-username" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Mot de passe:</label>
+                    <input type="password" id="login-password" required>
+                </div>
+                <div id="login-tabs" class="tabs">
+                    <button type="submit" class="btn btn-primary" id="btn-login">Connexion</button>
+                    <button type="button" class="btn btn-secondary" id="btn-toggle-register">Créer un compte</button>
+                </div>
+            </form>
+            <form id="register-form" style="display: none;">
+                <div class="form-group">
+                    <label for="register-username">Nom d'utilisateur:</label>
+                    <input type="text" id="register-username" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-password">Mot de passe:</label>
+                    <input type="password" id="register-password" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-password-confirm">Confirmer:</label>
+                    <input type="password" id="register-password-confirm" required>
+                </div>
+                <div id="register-buttons" class="tabs">
+                    <button type="submit" class="btn btn-primary" id="btn-register">S'inscrire</button>
+                    <button type="button" class="btn btn-secondary" id="btn-toggle-login">Se connecter</button>
+                </div>
+            </form>
+            <div id="auth-message" class="alert" style="display: none; margin-top: 10px;"></div>
+        </div>
+    </div>
+
+    <!-- Notification toast -->
+    <div id="notification" class="notification"></div>
+
+    <!-- Confirmation dialog -->
+    <div id="confirm-dialog" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2 id="confirm-title">Confirmation</h2>
+            <p id="confirm-message"></p>
+            <div class="tabs">
+                <button class="btn btn-danger" id="btn-confirm-yes">Oui</button>
+                <button class="btn btn-secondary" id="btn-confirm-no">Annuler</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- App scripts -->
+    <script src="/assets/js/api.js"></script>
+    <script src="/assets/js/ui.js"></script>
+    <script src="/assets/js/draw.js"></script>
+    <script src="/assets/js/socket.js"></script>
+    <script src="/assets/js/app.js"></script>
+</body>
+
+</html>
