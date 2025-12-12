@@ -2,50 +2,49 @@
  * UI Module – Manage interface: drawer, toolbar, modals, notifications
  */
 
-const UI = {
-    selectedObjectId: null,
-    isEditMode: false,
-
-    // ========== Drawer ==========
-
-    showDrawerDetails(obj) {
+const UI = (() => {
+    /**
+     * Afficher le panneau de détails (lecture seule)
+     */
+    function showDrawerDetails(obj) {
         document.getElementById('drawer-details').style.display = 'block';
         document.getElementById('drawer-form').style.display = 'none';
         document.getElementById('drawer-empty').style.display = 'none';
         document.getElementById('drawer-title').textContent = `Objet #${obj.id}`;
 
         document.getElementById('info-id').textContent = obj.id;
-        document.getElementById('info-danger-type').textContent = obj.danger_type_id || '—';
-        document.getElementById('info-severity').textContent = `${obj.severity}`;
+        document.getElementById('info-danger-type').textContent = obj.danger_type || '—';
+        document.getElementById('info-severity').textContent = obj.severity || '—';
         document.getElementById('info-description').textContent = obj.description || '(aucune description)';
         document.getElementById('info-author').textContent = obj.created_by_username || 'Unknown';
         document.getElementById('info-date').textContent = new Date(obj.created_at).toLocaleString('fr-FR');
 
-        // Show lock info if locked
+        // Afficher les infos de verrou si verrouillé
         const lockInfo = document.getElementById('lock-info');
-        if (obj.lock && obj.lock.locked_by) {
+        if (obj.locked_by) {
             lockInfo.style.display = 'block';
-            const expires = new Date(obj.lock.lock_expires_at);
+            const expires = new Date(obj.lock_expires_at);
             document.getElementById('lock-message').textContent =
-                `⚠️ Édité par ${obj.lock.locked_by_username} jusqu'à ${expires.toLocaleTimeString('fr-FR')}`;
+                `⚠️ Édité par ${obj.locked_by_username} jusqu'à ${expires.toLocaleTimeString('fr-FR')}`;
         } else {
             lockInfo.style.display = 'none';
         }
 
         document.getElementById('drawer').classList.add('open');
-        this.selectedObjectId = obj.id;
-        this.updateToolbar();
-    },
+    }
 
-    showDrawerForm(obj = null) {
+    /**
+     * Afficher le formulaire d'édition/création
+     */
+    function showDrawerForm(obj = null) {
         document.getElementById('drawer-details').style.display = 'none';
         document.getElementById('drawer-form').style.display = 'block';
         document.getElementById('drawer-empty').style.display = 'none';
 
         if (obj) {
             document.getElementById('drawer-title').textContent = `Éditer #${obj.id}`;
-            document.getElementById('form-danger-type').value = obj.danger_type_id;
-            document.getElementById('form-severity').value = obj.severity;
+            document.getElementById('form-danger-type').value = obj.danger_type_id || '';
+            document.getElementById('form-severity').value = obj.severity || '';
             document.getElementById('form-description').value = obj.description || '';
         } else {
             document.getElementById('drawer-title').textContent = 'Nouveau polygone';
@@ -54,111 +53,140 @@ const UI = {
             document.getElementById('form-description').value = '';
         }
 
-        this.updateCharCount();
+        updateCharCount();
         document.getElementById('drawer').classList.add('open');
-        this.isEditMode = true;
-    },
+    }
 
-    showDrawerEmpty() {
+    /**
+     * Afficher le panneau vide (pas de sélection)
+     */
+    function showDrawerEmpty() {
         document.getElementById('drawer-details').style.display = 'none';
         document.getElementById('drawer-form').style.display = 'none';
         document.getElementById('drawer-empty').style.display = 'block';
         document.getElementById('drawer-title').textContent = 'Détails';
         document.getElementById('drawer').classList.remove('open');
-        this.selectedObjectId = null;
-        this.updateToolbar();
-    },
+    }
 
-    closeDrawer() {
+    /**
+     * Fermer le drawer
+     */
+    function closeDrawer() {
         document.getElementById('drawer').classList.remove('open');
-        this.selectedObjectId = null;
-        this.isEditMode = false;
-        this.updateToolbar();
-    },
+    }
 
-    updateCharCount() {
+    /**
+     * Mettre à jour le compteur de caractères
+     */
+    function updateCharCount() {
         const textarea = document.getElementById('form-description');
         const count = textarea.value.length;
         document.getElementById('char-count').textContent = `${count}/500`;
-    },
+    }
 
-    // ========== Toolbar ==========
-
-    updateToolbar() {
-        const isAuthenticated = !!APP.currentUser;
-        const hasSelection = this.selectedObjectId !== null;
-        const isEditMode = this.isEditMode;
-
-        document.getElementById('toolbar').style.display = isAuthenticated ? 'flex' : 'none';
-        document.getElementById('btn-edit').disabled = !hasSelection || (hasSelection && this.isDrawing);
-        document.getElementById('btn-delete').disabled = !hasSelection;
-    },
-
-    showToolbarStatus(msg) {
+    /**
+     * Afficher un message dans la barre d'outils
+     */
+    function showToolbarStatus(msg) {
         document.getElementById('toolbar-status').textContent = msg;
-    },
+    }
 
-    // ========== Authentication UI ==========
-
-    showLoginModal() {
-        document.getElementById('login-modal').style.display = 'flex';
+    /**
+     * Afficher la modal de connexion
+     */
+    function showLoginModal() {
+        const modal = document.getElementById('login-modal');
+        modal.style.display = 'flex';
+        modal.style.pointerEvents = 'auto';
+        document.getElementById('map').style.pointerEvents = 'none';
         document.getElementById('login-form').style.display = 'block';
         document.getElementById('register-form').style.display = 'none';
         document.getElementById('auth-message').style.display = 'none';
-        // focus username
         const userEl = document.getElementById('login-username');
         if (userEl) userEl.focus();
-    },
-
-    hideLoginModal() {
-        document.getElementById('login-modal').style.display = 'none';
+    }
+    /**
+     * Masquer la modal de connexion
+     */
+    function hideLoginModal() {
+        const modal = document.getElementById('login-modal');
+        modal.style.display = 'none';
+        modal.style.pointerEvents = 'auto';
+        document.getElementById('map').style.pointerEvents = 'auto';
         document.getElementById('auth-message').style.display = 'none';
-    },
+    }
 
-    showAuthMessage(msg, isError = false) {
+    /**
+     * Afficher un message d'authentification
+     */
+    function showAuthMessage(msg, isError = false) {
         const el = document.getElementById('auth-message');
         el.textContent = msg;
         el.className = `alert ${isError ? 'alert-error' : 'alert-success'}`;
         el.style.display = 'block';
-    },
+    }
 
-    shakeAuthModal() {
+    /**
+     * Animer la modal d'auth (shake)
+     */
+    function shakeAuthModal() {
         const content = document.querySelector('#login-modal .modal-content');
         if (!content) return;
         content.classList.remove('shake');
-        // Force reflow
-        // eslint-disable-next-line no-unused-expressions
-        content.offsetWidth;
+        content.offsetWidth; // Force reflow
         content.classList.add('shake');
         setTimeout(() => content.classList.remove('shake'), 700);
-    },
+    }
 
-    updateUserDisplay(user) {
+    /**
+     * Mettre à jour l'affichage de l'utilisateur
+     */
+    function updateUserDisplay(user) {
         const display = document.getElementById('user-display');
         const btn = document.getElementById('auth-btn');
 
+        if (!btn) {
+            console.warn('Auth button not found in DOM');
+            return;
+        }
+
+        // Store reference to avoid nested closures
+        let handleAuthBtnClick = null;
+
         if (user) {
-            display.textContent = user.username;
+            if (display) display.textContent = user.username;
             btn.textContent = 'Déconnexion';
-            btn.onclick = () => {
+            handleAuthBtnClick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 console.log('Logout clicked');
                 APP.logout();
             };
-            document.getElementById('status-indicator').textContent = 'Contributeur';
+            const statusInd = document.getElementById('status-indicator');
+            if (statusInd) statusInd.textContent = 'Contributeur';
         } else {
-            display.textContent = '';
+            if (display) display.textContent = '';
             btn.textContent = 'Se connecter';
-            btn.onclick = () => {
+            handleAuthBtnClick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 console.log('Show login modal clicked');
                 UI.showLoginModal();
             };
-            document.getElementById('status-indicator').textContent = 'Lecture seule';
+            const statusInd = document.getElementById('status-indicator');
+            if (statusInd) statusInd.textContent = 'Lecture seule';
         }
-    },
 
-    // ========== Notifications ==========
+        // Always attach the listener (remove old ones first to prevent duplicates)
+        btn.removeEventListener('click', btn._authHandler);
+        btn._authHandler = handleAuthBtnClick;
+        btn.addEventListener('click', handleAuthBtnClick);
+    }
 
-    notify(msg, type = 'info', duration = 3000) {
+    /**
+     * Afficher une notification (toast)
+     */
+    function notify(msg, type = 'info', duration = 3000) {
         const notif = document.getElementById('notification');
         notif.textContent = msg;
         notif.className = `notification notification-${type}`;
@@ -167,11 +195,12 @@ const UI = {
         setTimeout(() => {
             notif.style.display = 'none';
         }, duration);
-    },
+    }
 
-    // ========== Confirmation Dialog ==========
-
-    async confirm(title, message) {
+    /**
+     * Afficher une boîte de confirmation et retourner la réponse
+     */
+    async function confirm(title, message) {
         return new Promise((resolve) => {
             document.getElementById('confirm-title').textContent = title;
             document.getElementById('confirm-message').textContent = message;
@@ -193,8 +222,76 @@ const UI = {
                 resolve(false);
             };
         });
-    },
-};
+    }
+
+    /**
+     * Mettre à jour le statut du dessin
+     */
+    function updateDrawStatus(msg) {
+        document.getElementById('toolbar-status').textContent = msg;
+    }
+
+    /**
+     * Afficher le badge "Édition en cours"
+     */
+    function showLockBadge(expirySeconds) {
+        let badge = document.getElementById('lock-badge');
+        if (!badge) {
+            const container = document.querySelector('.drawer-header');
+            badge = document.createElement('span');
+            badge.id = 'lock-badge';
+            badge.className = 'lock-badge';
+            container.appendChild(badge);
+        }
+        badge.textContent = `🔒 Édition en cours (${expirySeconds}s)`;
+        badge.style.display = 'block';
+    }
+
+    /**
+     * Masquer le badge d'édition
+     */
+    function hideLockBadge() {
+        const badge = document.getElementById('lock-badge');
+        if (badge) badge.style.display = 'none';
+    }
+
+    /**
+     * Afficher les boutons Enregistrer/Annuler
+     */
+    function showSaveCancel() {
+        document.getElementById('btn-save').style.display = 'inline-block';
+        document.getElementById('btn-cancel').style.display = 'inline-block';
+    }
+
+    /**
+     * Masquer les boutons Enregistrer/Annuler
+     */
+    function hideSaveCancel() {
+        document.getElementById('btn-save').style.display = 'none';
+        document.getElementById('btn-cancel').style.display = 'none';
+    }
+
+    return {
+        showDrawerDetails,
+        showDrawerForm,
+        showDrawerEmpty,
+        closeDrawer,
+        updateCharCount,
+        showToolbarStatus,
+        showLoginModal,
+        hideLoginModal,
+        showAuthMessage,
+        shakeAuthModal,
+        updateUserDisplay,
+        notify,
+        confirm,
+        updateDrawStatus,
+        showLockBadge,
+        hideLockBadge,
+        showSaveCancel,
+        hideSaveCancel,
+    };
+})();
 
 // ========== Event Handlers ==========
 
@@ -260,7 +357,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const msg = err && err.message ? err.message : 'Erreur inconnue';
                 UI.notify(`Connexion échouée: ${msg}`, 'error');
                 UI.shakeAuthModal();
-                // focus username for retry
                 const userEl = document.getElementById('login-username');
                 if (userEl) userEl.focus();
             }
@@ -277,9 +373,9 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Register form submitted');
             const username = document.getElementById('register-username').value;
             const password = document.getElementById('register-password').value;
-            const confirm = document.getElementById('register-password-confirm').value;
+            const confirm_val = document.getElementById('register-password-confirm').value;
 
-            if (password !== confirm) {
+            if (password !== confirm_val) {
                 UI.showAuthMessage('Les mots de passe ne correspondent pas', true);
                 return;
             }

@@ -65,8 +65,9 @@ def get_current_user(authorization: Optional[str] = Header(None)):
         conn.close()
         return dict_from_row(row)
 
-    # run blocking DB call in thread
-    return asyncio.get_event_loop().run_until_complete(asyncio.to_thread(_query))
+    # run blocking DB call in thread - this function is already called in a thread
+    # by FastAPI's dependency resolution, so just call it directly
+    return _query()
 
 
 def require_login(user: Optional[dict] = Depends(get_current_user)):

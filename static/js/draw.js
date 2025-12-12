@@ -1,171 +1,228 @@
 /**
- * Draw Module – Handle polygon drawing and editing
+ * Draw Module – Gestion du dessin et édition géométrique avec Leaflet-Geoman
+ * 
+ * Modes :
+ *   - CREATE: Dessiner un nouveau polygone
+ *   - EDIT: Éditer les sommets d'un polygone existant
  */
 
-const DRAW = {
+const DRAW = (() => {
+    let map = null;
+    let drawnLayers = L.featureGroup(); // groupe pour couches de dessin temporaires
+    let currentDrawnLayer = null; // polygone en cours de création
+    let currentMode = null; // 'CREATE' | 'EDIT' | null
+    let isGeomanReady = false;
 
-    map: null,
-    drawnItems: null,
-    isDrawing: false,
-    drawMode: null,
-    drawnPoints: [],
-    currentPolyline: null,
-    currentEditableLayer: null,
+    /**
+     * Initialiser Geoman et ses contrôles
+     */
+    function init(leafletMap) {
+        map = leafletMap;
+        map.addLayer(drawnLayers);
 
-    init() {
-        console.log('DRAW.init()');
-        this.drawnItems = L.featureGroup();
-        if (APP && APP.map) {
-            this.map = APP.map;
-            this.map.addLayer(this.drawnItems);
-        }
-        console.log('DRAW initialized');
-    },
-    startCreateMode() {
-        console.log('DRAW.startCreateMode()');
-        this.isDrawing = true;
-        this.drawMode = 'create';
-        this.drawnPoints = [];
-        this.currentPolyline = null;
+        // Attendre que Geoman soit disponible (il peut être chargé async)
+        let attempts = 0;
+        const maxAttempts = 50;
 
-        this.map.on('click', this.onMapClick.bind(this));
-
-        UI.showToolbarStatus('Cliquez sur la carte pour créer un polygone. Clic droit pour fermer.');
-        document.getElementById('btn-save').style.display = 'inline-block';
-        document.getElementById('btn-cancel').style.display = 'inline-block';
-    },
-
-    startEditMode() {
-        this.isDrawing = true;
-        this.drawMode = 'edit';
-        UI.showToolbarStatus('Modifiez la géométrie du polygone...');
-        document.getElementById('btn-save').style.display = 'inline-block';
-        document.getElementById('btn-cancel').style.display = 'inline-block';
-    },
-
-    stopDrawMode() {
-        this.isDrawing = false;
-        this.drawMode = null;
-        this.drawnPoints = [];
-
-        if (this.currentPolyline) {
-            this.map.removeLayer(this.currentPolyline);
-            this.currentPolyline = null;
-        }
-
-        this.map.off('click', this.onMapClick.bind(this));
-
-        UI.showToolbarStatus('');
-        document.getElementById('btn-save').style.display = 'none';
-        document.getElementById('btn-cancel').style.display = 'none';
-    },
-
-    onMapClick(e) {
-        if (!this.isDrawing || this.drawMode !== 'create') return;
-        if (e.originalEvent.button === 2) return;
-
-        const latlng = e.latlng;
-        console.log(`Point: ${latlng.lat}, ${latlng.lng}`);
-
-        const marker = L.circleMarker(latlng, {
-            radius: 5,
-            color: 'blue',
-            weight: 2,
-            opacity: 1,
-            fillColor: 'lightblue',
-            fillOpacity: 0.8,
-        });
-        marker.addTo(this.drawnItems);
-        this.drawnPoints.push(latlng);
-
-        if (this.currentPolyline) {
-            this.map.removeLayer(this.currentPolyline);
-        }
-        this.currentPolyline = L.polyline(this.drawnPoints, {
-            color: 'blue',
-            weight: 2,
-            opacity: 0.7,
-        });
-        this.currentPolyline.addTo(this.drawnItems);
-
-        UI.showToolbarStatus(`Points: ${this.drawnPoints.length}`);
-    },
-
-    onDrawStart(e) {
-        // Nothing special
-    },
-
-    onDrawStop(e) {
-        // Nothing special
-    },
-
-    onDrawCreated(e) {
-        const layer = e.layer;
-        this.drawnItems.addLayer(layer);
-    },
-
-    onDrawEdited(e) {
-        // Update current editable layer
-        e.layers.eachLayer((layer) => {
-            this.currentEditableLayer = layer;
-        });
-    },
-
-    getDrawnGeometry() {
-        console.log('DRAW.getDrawnGeometry()');
-        let geometry = null;
-
-        if (this.drawnPoints.length >= 3) {
-            const coords = this.drawnPoints.map((ll) => [ll.lng, ll.lat]);
-            coords.push([coords[0][0], coords[0][1]]);
-            geometry = {
-                type: 'Polygon',
-                coordinates: [coords],
-            };
-            console.log('Geometry from drawn points:', geometry);
-            return geometry;
-        }
-
-        this.drawnItems.eachLayer((layer) => {
-            if (layer instanceof L.Polygon && !(layer instanceof L.CircleMarker)) {
-                const coords = layer.getLatLngs()[0].map((ll) => [ll.lng, ll.lat]);
-                if (coords[0][0] !== coords[coords.length - 1][0] ||
-                    coords[0][1] !== coords[coords.length - 1][1]) {
-                    coords.push([coords[0][0], coords[0][1]]);
+        const initGeoman = () => {
+            if (window.L && window.L.PM) {
+                map.pm.addControls({
+                    position: 'topleft',
+                    drawCircle: false,
+                    drawCircleMarker: false,
+                    drawPolyline: false,
+                    drawRectangle: false,
+                    drawText: false,
+                    editMode: true,
+                    dragMode: false,
+                    cutPolygon: false,
+                });
+                isGeomanReady = true;
+                console.log('Leaflet-Geoman initialized');
+                setupGeomanListeners();
+            } else {
+                attempts++;
+                if (attempts < maxAttempts) {
+                    // Réessayer après un court délai
+                    setTimeout(initGeoman, 100);
+                } else {
+                    console.warn('Leaflet-Geoman failed to load after ' + attempts + ' attempts');
+                    console.warn('window.L:', window.L);
+                    console.warn('window.L.PM:', window.L?.PM);
                 }
-                geometry = {
-                    type: 'Polygon',
-                    coordinates: [coords],
-                };
-                console.log('Geometry from existing:', geometry);
+            }
+        };
+
+        initGeoman();
+    }
+
+    /**
+     * Configurer les écouteurs d'événements Geoman
+     */
+    function setupGeomanListeners() {
+        if (!map || !map.pm) return;
+
+        // Polygone créé (pm:create)
+        map.on('pm:create', (e) => {
+            const layer = e.layer;
+            const coords = layer.toGeoJSON().geometry.coordinates;
+
+            console.log('Polygone dessiné:', coords);
+
+            if (currentMode === 'CREATE') {
+                currentDrawnLayer = layer;
+                AppState.setDrawnGeometry(layer.toGeoJSON().geometry);
+                UI.updateDrawStatus('Polygone dessiné. Complétez le formulaire et enregistrez.');
             }
         });
 
-        return geometry;
-    },
+        // Édition de couche (pm:edit)
+        map.on('pm:edit', (e) => {
+            const layer = e.layer;
+            if (currentMode === 'EDIT') {
+                const geom = layer.toGeoJSON().geometry;
+                AppState.updateEditingGeometry(geom);
+                UI.updateDrawStatus('Géométrie modifiée. Enregistrez pour sauvegarder.');
+            }
+        });
 
-    displayGeometry(geometry) {
-        this.drawnItems.clearLayers();
-        if (!geometry) return;
+        // Couche supprimée (pm:remove)
+        map.on('pm:remove', (e) => {
+            console.log('Layer removed');
+        });
 
-        if (geometry.type === 'Polygon') {
-            const coords = geometry.coordinates[0].map((ll) => [ll[1], ll[0]]);
-            const polygon = L.polygon(coords, {
-                color: 'blue',
-                weight: 2,
-                opacity: 0.7,
-                fillColor: 'lightblue',
-                fillOpacity: 0.3,
-            });
-            this.drawnItems.addLayer(polygon);
-            console.log('Polygon displayed');
+        // Mode de dessin activé/désactivé
+        map.on('pm:drawstart', (e) => {
+            console.log('Draw started:', e.shape);
+        });
+
+        map.on('pm:drawend', (e) => {
+            console.log('Draw ended');
+        });
+
+        console.log('Geoman event listeners configured');
+    }
+
+    /**
+     * Démarrer le mode CREATE (dessin d'un nouveau polygone)
+     */
+    function startCreateMode() {
+        if (!isGeomanReady) {
+            console.error('Geoman not initialized');
+            UI.notify('Erreur: Outils de dessin non disponibles', 'error');
+            return;
         }
-    },
 
-    clearDrawnItems() {
-        console.log('DRAW.clearDrawnItems()');
-        this.drawnItems.clearLayers();
-        this.drawnPoints = [];
-        this.currentPolyline = null;
-    },
-};
+        currentMode = 'CREATE';
+        currentDrawnLayer = null;
+
+        // Activer l'outil de dessin de polygone dans Geoman
+        map.pm.enableDraw('Polygon', {
+            snappingOrder: ['marker', 'poly'],
+        });
+
+        UI.updateDrawStatus('Cliquez sur la carte pour dessiner un polygone. Double-clic pour terminer.');
+        console.log('Create mode started');
+    }
+
+    /**
+     * Démarrer le mode EDIT (éditer un polygone existant)
+     */
+    function startEditMode(geoJsonFeature) {
+        if (!isGeomanReady) {
+            console.error('Geoman not initialized');
+            return;
+        }
+
+        currentMode = 'EDIT';
+
+        // Ajouter le polygone à la map s'il n'y est pas
+        const layer = L.geoJSON(geoJsonFeature, {
+            style: {
+                color: '#ff7800',
+                weight: 3,
+                opacity: 0.8,
+                fillOpacity: 0.2,
+            },
+        }).addTo(drawnLayers);
+
+        // Récupérer la première couche (il n'y en a qu'une)
+        const polyLayer = layer.getLayers()[0];
+
+        // Activer l'édition pour cette couche
+        polyLayer.pm.enable({
+            allowSelfIntersection: false,
+        });
+
+        currentDrawnLayer = polyLayer;
+        UI.updateDrawStatus('Édition géométrique activée. Déplacez/ajoutez/supprimez des sommets.');
+        console.log('Edit mode started');
+    }
+
+    /**
+     * Arrêter les modes de dessin/édition
+     */
+    function stopDrawMode() {
+        if (!map || !map.pm) return;
+
+        // Désactiver tous les outils de dessin
+        map.pm.disableDraw();
+
+        // Désactiver l'édition sur toutes les couches
+        drawnLayers.eachLayer(layer => {
+            if (layer.pm) {
+                layer.pm.disable();
+            }
+        });
+
+        currentMode = null;
+        currentDrawnLayer = null;
+        UI.updateDrawStatus('');
+        console.log('Draw mode stopped');
+    }
+
+    /**
+     * Effacer toutes les couches dessinées
+     */
+    function clearDrawnLayers() {
+        drawnLayers.clearLayers();
+        currentDrawnLayer = null;
+    }
+
+    /**
+     * Obtenir la géométrie GeoJSON dessinée
+     */
+    function getDrawnGeometry() {
+        if (!currentDrawnLayer) return null;
+        return currentDrawnLayer.toGeoJSON().geometry;
+    }
+
+    /**
+     * Valider le dessin (au moins 3 points pour un polygone)
+     */
+    function isValidDrawing() {
+        const geom = getDrawnGeometry();
+        if (!geom || geom.type !== 'Polygon') return false;
+        // Un polygone valide a au moins 4 coordonnées (3 points + fermeture)
+        const coords = geom.coordinates[0];
+        return coords && coords.length >= 4;
+    }
+
+    /**
+     * Obtenir le mode courant
+     */
+    function getCurrentMode() {
+        return currentMode;
+    }
+
+    return {
+        init,
+        startCreateMode,
+        startEditMode,
+        stopDrawMode,
+        clearDrawnLayers,
+        getDrawnGeometry,
+        isValidDrawing,
+        getCurrentMode,
+    };
+})();

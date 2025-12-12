@@ -98,12 +98,12 @@ const API = {
             maxLng: bbox.maxLng,
         });
         const res = await this.request('GET', `/map-objects?${params}`);
-        return res.data;
+        return res;
     },
 
     async getMapObject(id) {
         const res = await this.request('GET', `/map-objects/${id}`);
-        return res.data;
+        return res;
     },
 
     async createMapObject(geometry, dangerTypeId, severity, description) {
@@ -113,32 +113,27 @@ const API = {
             severity,
             description,
         });
-        return res.data;
+        return res;
     },
 
     async checkoutObject(id) {
         const res = await this.request('POST', `/map-objects/${id}/checkout`);
-        return res.data;
+        return res;
     },
 
     async releaseObject(id) {
         const res = await this.request('POST', `/map-objects/${id}/release`);
-        return res.data;
+        return res;
     },
 
-    async updateMapObject(id, geometry, dangerTypeId, severity, description) {
-        const res = await this.request('PUT', `/map-objects/${id}`, {
-            geometry: geometry || undefined,
-            danger_type_id: dangerTypeId || undefined,
-            severity: severity || undefined,
-            description,
-        });
-        return res.data;
+    async updateMapObject(id, payload) {
+        const res = await this.request('PUT', `/map-objects/${id}`, payload);
+        return res;
     },
 
     async deleteMapObject(id) {
         const res = await this.request('DELETE', `/map-objects/${id}`);
-        return res.data;
+        return res;
     },
 
     async getLockStatus(id) {

@@ -22,6 +22,7 @@ body {
     position: absolute;
     top: 0;
     left: 0;
+    z-index: 1;
 }
 
 /* ========== Top Bar ========== */
@@ -276,6 +277,18 @@ body {
     font-size: 13px;
 }
 
+.lock-badge {
+    display: inline-block;
+    background: #ff9800;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-left: auto;
+    white-space: nowrap;
+}
+
 /* ========== Forms ========== */
 
 .form-group {
@@ -319,7 +332,6 @@ body {
 /* ========== Modal ========== */
 
 .modal {
-    display: none;
     position: fixed;
     top: 0;
     left: 0;
