@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, status, Query, Depends
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 import json
+from shapely.geometry import shape
 
 from app.database import get_db, dict_from_row
 from app.models import (
@@ -32,6 +33,39 @@ def set_sio(socket_server):
 
 
 router = APIRouter()
+
+
+def _geometry_intersects_existing(
+    conn, new_geom_json: dict, exclude_id: int | None = None
+) -> bool:
+    """Return True if new geometry intersects any existing non-deleted geometry."""
+    try:
+        new_geom = shape(new_geom_json)
+    except Exception:
+        return False
+
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT id, geometry
+        FROM map_objects
+        WHERE deleted_at IS NULL
+        """
+    )
+    rows = cursor.fetchall()
+    for row in rows:
+        row_id = row[0]
+        if exclude_id and row_id == exclude_id:
+            continue
+        try:
+            existing = shape(json.loads(row[1]))
+        except Exception:
+            continue
+        # Consider overlap only if interiors intersect (not just touching edges/points)
+        if new_geom.intersects(existing) and not new_geom.touches(existing):
+            return True
+    return False
+
 
 LOCK_DURATION_MINUTES = 15
 
@@ -166,6 +200,13 @@ async def create_map_object(req: MapObjectCreate, user: dict = Depends(require_l
         )
 
     conn = get_db()
+    # Prevent overlapping zones
+    if _geometry_intersects_existing(conn, req.geometry):
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="La zone chevauche une zone existante",
+        )
     cursor = conn.cursor()
 
     # Insert object
@@ -371,6 +412,13 @@ async def update_map_object(
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Invalid geometry",
+            )
+        # Prevent overlapping zones excluding self
+        if _geometry_intersects_existing(conn, req.geometry, exclude_id=object_id):
+            conn.close()
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="La zone chevauche une zone existante",
             )
 
     geometry_json = json.dumps(new_geometry) if req.geometry else obj["geometry"]
