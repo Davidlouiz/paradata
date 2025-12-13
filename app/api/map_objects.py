@@ -526,6 +526,8 @@ async def delete_map_object(object_id: int, user: dict = Depends(require_login))
             "map_object_deleted",
             {
                 "object_id": object_id,
+                "deleted_by": user["id"],
+                "deleted_by_username": user.get("username", "Unknown"),
             },
             skip_sid=None,
         )

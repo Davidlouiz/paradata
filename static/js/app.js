@@ -586,6 +586,7 @@ const APP = (() => {
                     severity,
                     description,
                 });
+                UI.updateDrawStatus(''); // Vider avant affichage toast
                 UI.notify('Zone créée!', 'success');
                 console.log('Object created:', res.data);
                 savedObjectData = res.data;
@@ -596,6 +597,7 @@ const APP = (() => {
                     severity,
                     description,
                 });
+                UI.updateDrawStatus(''); // Vider avant affichage toast
                 UI.notify('Zone mise à jour!', 'success');
                 console.log('Object updated:', res.data);
                 savedObjectData = res.data;
@@ -680,7 +682,7 @@ const APP = (() => {
             // Pour maintenant, supprimer directement
 
             await API.deleteMapObject(state.selectedObjectId);
-            UI.notify('Zone supprimée!', 'success');
+            // Notification broadcastée par socket.js à tous les utilisateurs
 
             // Si on était en mode EDIT, nettoyer les couches d'édition
             if (state.mode === 'EDIT') {

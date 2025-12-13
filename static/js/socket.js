@@ -138,7 +138,9 @@ const SOCKET = {
         await APP.loadMapObjects();
         // Don't show notification if user just created it
         if (data.object.created_by !== APP.currentUser?.id) {
-            UI.notify('Nouvelle zone ajoutée à la carte', 'info');
+            const createdBy = data.object.created_by_username || 'Un autre utilisateur';
+            const zoneId = data.object.id;
+            UI.notify(`Nouvelle zone #${zoneId} ajoutée à la carte par ${createdBy}`, 'info');
         }
     },
 
@@ -155,7 +157,8 @@ const SOCKET = {
         // Don't show notification if user just updated it
         if (data.object.updated_by !== APP.currentUser?.id) {
             const updatedBy = data.object.updated_by_username || 'Un autre utilisateur';
-            UI.notify(`Zone mise à jour par ${updatedBy}`, 'info');
+            const zoneId = data.object.id;
+            UI.notify(`Zone #${zoneId} mise à jour par ${updatedBy}`, 'info');
         }
     },
 
@@ -168,7 +171,10 @@ const SOCKET = {
             UI.closeDrawer();
         }
 
-        UI.notify('Une zone a été supprimée', 'info');
+        // Show notification to all users
+        const deletedBy = data.deleted_by_username || 'Un autre utilisateur';
+        const zoneId = data.object_id;
+        UI.notify(`Zone #${zoneId} supprimée par ${deletedBy}`, 'info');
     },
 
     async onMapObjectLocked(data) {
@@ -180,11 +186,6 @@ const SOCKET = {
             if (!UI.isEditMode) {
                 UI.showDrawerDetails(obj);
             }
-        }
-
-        // Show notification if locked by someone else
-        if (data.locked_by !== APP.currentUser?.id) {
-            UI.notify(`Zone en cours de modification par ${data.locked_by_username}`, 'info');
         }
     },
 
