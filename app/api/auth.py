@@ -7,6 +7,7 @@ import bcrypt
 from app.database import get_db, dict_from_row
 import asyncio
 from app.models import LoginRequest, LoginResponse, AuthMeResponse, UserResponse
+from app.services.quota import reset_daily_quota, get_remaining_quota
 
 router = APIRouter()
 
@@ -192,3 +193,14 @@ async def register(req: LoginRequest):
             "created_at": datetime.utcnow().isoformat(),
         },
     )
+
+
+@router.post("/reset-quota")
+async def reset_quota(user: dict = Depends(require_login)):
+    """Reset current user's daily quota usage for today."""
+    try:
+        reset_daily_quota(user["id"]) 
+        remaining = get_remaining_quota(user["id"]) 
+        return {"success": True, "data": {"remaining_quota": remaining}}
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Quota reset failed: {exc}")

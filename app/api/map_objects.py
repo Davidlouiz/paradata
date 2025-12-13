@@ -39,6 +39,7 @@ def _geometry_intersects_existing(
     conn, new_geom_json: dict, exclude_id: int | None = None
 ) -> bool:
     """Return True if new geometry intersects any existing non-deleted geometry."""
+    AREA_EPSILON = 1e-7  # tolerate tiny numeric overlaps
     try:
         new_geom = shape(new_geom_json)
     except Exception:
@@ -61,9 +62,15 @@ def _geometry_intersects_existing(
             existing = shape(json.loads(row[1]))
         except Exception:
             continue
-        # Consider overlap only if interiors intersect (not just touching edges/points)
-        if new_geom.intersects(existing) and not new_geom.touches(existing):
-            return True
+        if not new_geom.intersects(existing):
+            continue
+        intersection = new_geom.intersection(existing)
+        if intersection.is_empty:
+            continue
+        # Allow boundary contacts and negligible overlaps; block only if area is meaningful
+        if intersection.area <= AREA_EPSILON:
+            continue
+        return True
     return False
 
 

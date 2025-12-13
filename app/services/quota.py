@@ -77,3 +77,25 @@ def get_remaining_quota(user_id: int) -> int:
     """Get remaining quota for user today."""
     usage = get_daily_usage(user_id)
     return max(0, DAILY_QUOTA_LIMIT - usage)
+
+
+def reset_daily_quota(user_id: int) -> int:
+    """Reset the user's daily quota usage for today and return remaining quota."""
+    conn = get_db()
+    cursor = conn.cursor()
+
+    today = str(date.today())
+    # Delete the record for today (simplest reset)
+    cursor.execute(
+        """
+        DELETE FROM daily_quota
+        WHERE user_id = ? AND date = ?
+        """,
+        (user_id, today),
+    )
+
+    conn.commit()
+    conn.close()
+
+    # Remaining quota is full limit after reset
+    return DAILY_QUOTA_LIMIT
