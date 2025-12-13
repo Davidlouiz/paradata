@@ -346,6 +346,18 @@ const APP = (() => {
                 const state = AppState.getState();
                 if (state.mode === 'DRAW' || state.mode === 'EDIT') {
                     cancelEdit();
+                    AppState.deselectObject();
+                    UI.closeDrawer();
+                } else if (state.selectedObjectId !== null) {
+                    const previouslySelected = state.selectedObjectId;
+                    AppState.deselectObject();
+                    UI.closeDrawer();
+
+                    // Rétablir le style normal sur la couche précédemment sélectionnée
+                    const layer = mapLayers[previouslySelected];
+                    if (layer) {
+                        layer.setStyle(getPolygonStyle(layer.objData));
+                    }
                 }
             }
         });
