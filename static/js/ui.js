@@ -4,6 +4,20 @@
 
 const UI = (() => {
     /**
+     * Convertir le code de sévérité interne en label lisible
+     */
+    function getSeverityLabel(severity) {
+        const labels = {
+            'SAFE': 'Pas d\'alerte',
+            'LOW_RISK': 'Danger faible',
+            'RISK': 'Danger significatif',
+            'HIGH_RISK': 'Danger sérieux',
+            'CRITICAL': 'Danger vital',
+        };
+        return labels[severity] || severity;
+    }
+
+    /**
      * Afficher le panneau de détails (lecture seule)
      */
     function showDrawerDetails(obj) {
@@ -13,7 +27,7 @@ const UI = (() => {
         document.getElementById('drawer-title').textContent = `Zone #${obj.id}`;
 
         document.getElementById('info-id').textContent = obj.id;
-        document.getElementById('info-severity').textContent = obj.severity || '—';
+        document.getElementById('info-severity').textContent = getSeverityLabel(obj.severity) || '—';
         document.getElementById('info-description').textContent = obj.description || '(aucune description)';
         document.getElementById('info-author').textContent = obj.created_by_username || 'Unknown';
         document.getElementById('info-date').textContent = new Date(obj.created_at).toLocaleString('fr-FR');

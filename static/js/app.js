@@ -551,6 +551,7 @@ const APP = (() => {
      */
     async function cancelEdit() {
         const state = AppState.getState();
+        const wasEditingObjectId = state.selectedObjectId; // Sauvegarder avant de changer d'état
 
         // Si en édition, libérer le verrou (sauf si déjà libéré par update)
         // Libérer sans condition sur lockStatus, certains flux n'initialisent pas 'locked'
@@ -579,8 +580,29 @@ const APP = (() => {
             }
         });
 
-        // Recharger pour restaurer les styles des zones
+        // Recharger les objets de la carte
         await loadMapObjects();
+
+        // Récupérer l'objet édité depuis le serveur et ré-sélectionner
+        if (wasEditingObjectId) {
+            try {
+                const res = await API.getMapObject(wasEditingObjectId);
+                if (res.success && res.data) {
+                    const objData = res.data;
+                    // Ré-sélectionner l'objet
+                    AppState.selectObject(objData);
+                    // Mettre à jour la couche si elle existe
+                    if (mapLayers[wasEditingObjectId]) {
+                        mapLayers[wasEditingObjectId].objData = objData;
+                        mapLayers[wasEditingObjectId].setStyle(getPolygonStyle(objData));
+                    }
+                    // Afficher les détails
+                    UI.showDrawerDetails(objData);
+                }
+            } catch (err) {
+                console.warn('Error fetching object after cancel:', err);
+            }
+        }
     }
 
     // API publique
