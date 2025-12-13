@@ -225,7 +225,11 @@ const UI = (() => {
      * Mettre à jour le statut du dessin
      */
     function updateDrawStatus(msg) {
-        document.getElementById('toolbar-status').textContent = msg;
+        const el = document.getElementById('toolbar-status');
+        if (!el) return;
+
+        el.textContent = msg || '';
+        el.style.display = msg ? 'inline-block' : 'none';
     }
 
     /**

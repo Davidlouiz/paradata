@@ -48,13 +48,6 @@
         <button id="btn-delete" class="btn btn-danger" disabled title="Supprimer la zone sélectionnée">
             🗑️ Supprimer
         </button>
-        <div class="toolbar-separator"></div>
-        <button id="btn-save" class="btn btn-success" style="display: none;" title="Enregistrer les modifications">
-            💾 Enregistrer
-        </button>
-        <button id="btn-cancel" class="btn btn-secondary" style="display: none;" title="Annuler les modifications">
-            ❌ Annuler
-        </button>
         <span id="toolbar-status" class="toolbar-status"></span>
     </div>
 
@@ -98,7 +91,7 @@
                     <label for="form-severity">Dangerosité:</label>
                     <select id="form-severity" required>
                         <option value="">-- Sélectionner --</option>
-                        <option value="SAFE">SAFE – Pas de danger identifié</option>
+                        <option value="SAFE">SAFE – Pas d’alerte</option>
                         <option value="LOW_RISK">LOW_RISK – Danger faible</option>
                         <option value="RISK">RISK – Danger significatif</option>
                         <option value="HIGH_RISK">HIGH_RISK – Danger sérieux</option>
@@ -111,6 +104,17 @@
                     <textarea id="form-description" maxlength="500" rows="4"
                         placeholder="Détails du danger..."></textarea>
                     <small id="char-count">0/500</small>
+                </div>
+
+                <div class="form-actions">
+                    <button id="btn-save" type="button" class="btn btn-success" style="display: none;"
+                        title="Enregistrer les modifications">
+                        💾 Enregistrer
+                    </button>
+                    <button id="btn-cancel" type="button" class="btn btn-secondary" style="display: none;"
+                        title="Annuler les modifications">
+                        ❌ Annuler
+                    </button>
                 </div>
             </form>
 

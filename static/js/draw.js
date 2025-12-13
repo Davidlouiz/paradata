@@ -66,16 +66,12 @@ const DRAW = (() => {
                 AppState.setDrawnGeometry(layer.toGeoJSON().geometry);
                 UI.updateDrawStatus('Zone dessinée. Complétez le formulaire et enregistrez.');
 
-                // Appliquer un style gris foncé par défaut
-                layer.setStyle({
-                    color: '#666',
-                    weight: 3,
-                    opacity: 0.8,
-                    fillOpacity: 0.2,
-                });
+                // Déterminer la couleur selon la sévérité sélectionnée dans le formulaire
+                const formSeverity = document.getElementById('form-severity');
+                const selectedSeverity = formSeverity ? formSeverity.value : '';
 
-                // Stocker la couleur désirée dans la couche
-                layer._desiredColor = '#666';
+                // Appliquer le style avec la bonne couleur
+                updateEditingPolygonColor(selectedSeverity);
 
                 // Activer l'édition pour permettre les modifications
                 layer.pm.enable({
