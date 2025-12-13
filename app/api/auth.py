@@ -192,5 +192,3 @@ async def register(req: LoginRequest):
             "created_at": datetime.utcnow().isoformat(),
         },
     )
-
-

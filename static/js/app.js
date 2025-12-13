@@ -223,6 +223,11 @@ const APP = (() => {
     function selectPolygon(obj, layer) {
         const state = AppState.getState();
 
+        // Ignorer les clics pendant le dessin d'une nouvelle zone
+        if (state.mode === 'DRAW') {
+            return;
+        }
+
         // Sélectionner le nouveau AVANT de mettre à jour les anciens styles
         // pour que getPolygonStyle() reflète la nouvelle sélection
         AppState.selectObject(obj);
