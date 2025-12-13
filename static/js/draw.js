@@ -58,13 +58,13 @@ const DRAW = (() => {
             const layer = e.layer;
             const coords = layer.toGeoJSON().geometry.coordinates;
 
-            console.log('Polygone dessiné:', coords);
+            console.log('Zone dessinée:', coords);
 
             if (currentMode === 'CREATE') {
                 currentDrawnLayer = layer;
                 drawnLayers.addLayer(layer);
                 AppState.setDrawnGeometry(layer.toGeoJSON().geometry);
-                UI.updateDrawStatus('Polygone dessiné. Complétez le formulaire et enregistrez.');
+                UI.updateDrawStatus('Zone dessinée. Complétez le formulaire et enregistrez.');
 
                 // Appliquer un style gris foncé par défaut
                 layer.setStyle({
@@ -173,7 +173,7 @@ const DRAW = (() => {
                 },
             });
 
-            UI.updateDrawStatus('Cliquez sur la carte pour dessiner un polygone.');
+            UI.updateDrawStatus('Cliquez sur la carte pour dessiner une zone.');
             console.log('Create mode started successfully');
         } catch (err) {
             console.error('Error enabling draw mode:', err);

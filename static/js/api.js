@@ -136,8 +136,4 @@ const API = {
         return res;
     },
 
-    async getDangerTypes() {
-        const res = await this.request('GET', '/danger-types');
-        return res;
-    },
 };

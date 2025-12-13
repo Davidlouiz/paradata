@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Parapente stylisé -->
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff7800;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d32f2f;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Voile du parapente -->
+  <path d="M 32 8 L 12 40 L 52 40 Z" fill="url(#grad)" stroke="#000" stroke-width="1.5"/>
+  
+  <!-- Cordes -->
+  <line x1="20" y1="40" x2="28" y2="56" stroke="#333" stroke-width="1.5"/>
+  <line x1="32" y1="40" x2="32" y2="56" stroke="#333" stroke-width="1.5"/>
+  <line x1="44" y1="40" x2="36" y2="56" stroke="#333" stroke-width="1.5"/>
+  
+  <!-- Parachutiste -->
+  <circle cx="32" cy="58" r="3" fill="#333"/>
+</svg>

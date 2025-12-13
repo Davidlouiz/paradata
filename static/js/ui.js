@@ -10,10 +10,9 @@ const UI = (() => {
         document.getElementById('drawer-details').style.display = 'block';
         document.getElementById('drawer-form').style.display = 'none';
         document.getElementById('drawer-empty').style.display = 'none';
-        document.getElementById('drawer-title').textContent = `Objet #${obj.id}`;
+        document.getElementById('drawer-title').textContent = `Zone #${obj.id}`;
 
         document.getElementById('info-id').textContent = obj.id;
-        document.getElementById('info-danger-type').textContent = obj.danger_type || '—';
         document.getElementById('info-severity').textContent = obj.severity || '—';
         document.getElementById('info-description').textContent = obj.description || '(aucune description)';
         document.getElementById('info-author').textContent = obj.created_by_username || 'Unknown';
@@ -25,7 +24,7 @@ const UI = (() => {
             lockInfo.style.display = 'block';
             const expires = new Date(obj.lock_expires_at);
             document.getElementById('lock-message').textContent =
-                `⚠️ Édité par ${obj.locked_by_username} jusqu'à ${expires.toLocaleTimeString('fr-FR')}`;
+                `⚠️ Modifié par ${obj.locked_by_username} jusqu'à ${expires.toLocaleTimeString('fr-FR')}`;
         } else {
             lockInfo.style.display = 'none';
         }
@@ -42,13 +41,11 @@ const UI = (() => {
         document.getElementById('drawer-empty').style.display = 'none';
 
         if (obj) {
-            document.getElementById('drawer-title').textContent = `Éditer #${obj.id}`;
-            document.getElementById('form-danger-type').value = obj.danger_type_id || '';
+            document.getElementById('drawer-title').textContent = `Modifier #${obj.id}`;
             document.getElementById('form-severity').value = obj.severity || '';
             document.getElementById('form-description').value = obj.description || '';
         } else {
-            document.getElementById('drawer-title').textContent = 'Nouveau polygone';
-            document.getElementById('form-danger-type').value = '';
+            document.getElementById('drawer-title').textContent = 'Nouvelle zone';
             document.getElementById('form-severity').value = '';
             document.getElementById('form-description').value = '';
         }
@@ -232,7 +229,7 @@ const UI = (() => {
     }
 
     /**
-     * Afficher le badge "Édition en cours"
+    * Afficher le badge "Modification en cours"
      */
     function showLockBadge(expirySeconds) {
         // Si pas de valeur ou temps écoulé, cacher le badge pour éviter "expiré" dès le début
@@ -251,12 +248,12 @@ const UI = (() => {
         }
 
         // Afficher "expiré" plutôt que 0s pour éviter la confusion
-        badge.textContent = `🔒 Édition en cours (${expirySeconds}s)`;
+        badge.textContent = `🔒 Modification en cours (${expirySeconds}s)`;
         badge.style.display = 'block';
     }
 
     /**
-     * Masquer le badge d'édition
+    * Masquer le badge de modification
      */
     function hideLockBadge() {
         const badge = document.getElementById('lock-badge');

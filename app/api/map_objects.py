@@ -79,7 +79,6 @@ def serialize_map_object(row: dict, conn=None) -> MapObjectResponse:
     return MapObjectResponse(
         id=row["id"],
         geometry=json.loads(row["geometry"]),
-        danger_type_id=row["danger_type_id"],
         severity=row["severity"],
         description=row["description"],
         created_by=row["created_by"],
@@ -173,10 +172,10 @@ async def create_map_object(req: MapObjectCreate, user: dict = Depends(require_l
     geometry_json = json.dumps(req.geometry)
     cursor.execute(
         """
-        INSERT INTO map_objects (geometry, danger_type_id, severity, description, created_by)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO map_objects (geometry, severity, description, created_by)
+        VALUES (?, ?, ?, ?)
     """,
-        (geometry_json, req.danger_type_id, req.severity, req.description, user["id"]),
+        (geometry_json, req.severity, req.description, user["id"]),
     )
 
     object_id = cursor.lastrowid
@@ -358,9 +357,6 @@ async def update_map_object(
 
     # Update object
     new_geometry = req.geometry if req.geometry else obj["geometry"]
-    new_danger_type = (
-        req.danger_type_id if req.danger_type_id else obj["danger_type_id"]
-    )
     new_severity = req.severity if req.severity else obj["severity"]
     new_description = (
         req.description if req.description is not None else obj["description"]
@@ -382,13 +378,12 @@ async def update_map_object(
     cursor.execute(
         """
         UPDATE map_objects
-        SET geometry = ?, danger_type_id = ?, severity = ?, description = ?,
+        SET geometry = ?, severity = ?, description = ?,
             updated_by = ?, updated_at = ?, locked_by = NULL, lock_expires_at = NULL
         WHERE id = ?
     """,
         (
             geometry_json,
-            new_danger_type,
             new_severity,
             new_description,
             user["id"],

@@ -5,6 +5,7 @@ from datetime import datetime
 
 # ============ Auth Models ============
 
+
 class LoginRequest(BaseModel):
     username: str
     password: str
@@ -30,6 +31,7 @@ class AuthMeResponse(BaseModel):
 
 # ============ Map Objects Models ============
 
+
 class MapObjectGeometry(BaseModel):
     type: str  # "Polygon" or "MultiPolygon"
     coordinates: List
@@ -37,14 +39,12 @@ class MapObjectGeometry(BaseModel):
 
 class MapObjectCreate(BaseModel):
     geometry: dict  # GeoJSON geometry
-    danger_type_id: int
     severity: str  # SAFE, LOW_RISK, RISK, HIGH_RISK, CRITICAL
     description: Optional[str] = None
 
 
 class MapObjectUpdate(BaseModel):
     geometry: Optional[dict] = None
-    danger_type_id: Optional[int] = None
     severity: Optional[str] = None
     description: Optional[str] = None
 
@@ -58,7 +58,6 @@ class MapObjectLock(BaseModel):
 class MapObjectResponse(BaseModel):
     id: int
     geometry: dict
-    danger_type_id: int
     severity: str
     description: Optional[str]
     created_by: int

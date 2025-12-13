@@ -23,9 +23,6 @@ const APP = (() => {
         // Initialiser les modules
         DRAW.init(map);
 
-        // Charger les types de danger
-        await loadDangerTypes();
-
         // Vérifier l'authentification
         await checkAuth();
 
@@ -61,37 +58,6 @@ const APP = (() => {
             AppState.setCurrentUser(user);
         } catch (err) {
             AppState.setCurrentUser(null);
-        }
-    }
-
-    /**
-     * Charger les types de danger et peupler le select
-     */
-    async function loadDangerTypes() {
-        try {
-            const res = await API.getDangerTypes();
-            const types = res.data;
-
-            const select = document.getElementById('form-danger-type');
-            if (select) {
-                // Vider les options existantes sauf la première
-                while (select.options.length > 1) {
-                    select.remove(1);
-                }
-
-                // Ajouter les types de danger
-                types.forEach(type => {
-                    const option = document.createElement('option');
-                    option.value = type.id;
-                    option.textContent = type.name;
-                    option.title = type.description;
-                    select.appendChild(option);
-                });
-
-                console.log(`${types.length} danger types loaded`);
-            }
-        } catch (err) {
-            console.error('Error loading danger types:', err);
         }
     }
 
@@ -171,9 +137,9 @@ const APP = (() => {
     function renderMapObjects(objects) {
         const state = AppState.getState();
 
-        // Si on est en édition, ne pas recharger le polygone en cours d'édition
+        // Si on est en édition, ne pas recharger la zone en cours d'édition
         if (state.mode === 'EDIT') {
-            // Mettre à jour SEULEMENT les autres polygones
+            // Mettre à jour SEULEMENT les autres zones
             const editingObjectId = state.selectedObjectId;
             const objectsToUpdate = objects.filter(obj => obj.id !== editingObjectId);
 
@@ -186,7 +152,7 @@ const APP = (() => {
                 }
             });
 
-            // Ajouter/mettre à jour les autres polygones
+            // Ajouter/mettre à jour les autres zones
             objectsToUpdate.forEach((obj) => {
                 if (!mapLayers[obj.id]) {
                     renderMapObject(obj);
@@ -252,7 +218,7 @@ const APP = (() => {
     }
 
     /**
-     * Sélectionner un polygone
+    * Sélectionner une zone
      */
     function selectPolygon(obj, layer) {
         const state = AppState.getState();
@@ -293,7 +259,7 @@ const APP = (() => {
                 toolbar.style.display = isAuth ? 'flex' : 'none';
             }
 
-            // Mettre à jour les boutons Créer/Éditer/Supprimer selon sélection
+            // Mettre à jour les boutons Créer/Modifier/Supprimer selon sélection
             const btnEdit = document.getElementById('btn-edit');
             const btnDelete = document.getElementById('btn-delete');
             if (btnEdit && btnDelete) {
@@ -327,7 +293,7 @@ const APP = (() => {
             btnCreate.addEventListener('click', startCreate);
         }
 
-        // Bouton Éditer
+        // Bouton Modifier
         const btnEdit = document.getElementById('btn-edit');
         if (btnEdit) {
             btnEdit.addEventListener('click', startEdit);
@@ -337,7 +303,7 @@ const APP = (() => {
         const btnDelete = document.getElementById('btn-delete');
         if (btnDelete) {
             btnDelete.addEventListener('click', async () => {
-                if (await UI.confirm('Supprimer', 'Êtes-vous sûr de vouloir supprimer ce polygone\u202F?')) {
+                if (await UI.confirm('Supprimer', 'Êtes-vous sûr de vouloir supprimer cette zone\u202F?')) {
                     deletePolygon();
                 }
             });
@@ -355,7 +321,7 @@ const APP = (() => {
             btnCancel.addEventListener('click', cancelEdit);
         }
 
-        // Écouter les changements de sévérité pour mettre à jour la couleur du polygone en édition
+        // Écouter les changements de sévérité pour mettre à jour la couleur de la zone en édition
         const formSeverity = document.getElementById('form-severity');
         if (formSeverity) {
             formSeverity.addEventListener('change', (e) => {
@@ -386,7 +352,7 @@ const APP = (() => {
     }
 
     /**
-     * FLUX 2 : Démarrer le mode CREATE (dessiner un nouveau polygone)
+    * FLUX 2 : Démarrer le mode CREATE (dessiner une nouvelle zone)
      */
     function startCreate() {
         const state = AppState.getState();
@@ -403,7 +369,7 @@ const APP = (() => {
     }
 
     /**
-     * FLUX 3 : Démarrer le mode EDIT (éditer un polygone verrouillé)
+    * FLUX 3 : Démarrer le mode EDIT (modifier une zone verrouillée)
      */
     async function startEdit() {
         const state = AppState.getState();
@@ -417,7 +383,7 @@ const APP = (() => {
             // Vérifier si verrouillé par quelqu'un d'autre
             if (obj.locked_by && obj.locked_by !== state.currentUser?.id) {
                 UI.notify(
-                    `Cet objet est en cours d'édition par ${obj.locked_by_username}`,
+                    `Cette zone est en cours de modification par ${obj.locked_by_username}`,
                     'error'
                 );
                 return;
@@ -434,7 +400,7 @@ const APP = (() => {
             DRAW.clearDrawnLayers();
             DRAW.startEditMode(obj);
 
-            // Retirer le polygone original de la carte pour ne pas gêner l'édition
+            // Retirer la zone originale de la carte pour ne pas gêner l'édition
             if (mapLayers[obj.id]) {
                 const layer = mapLayers[obj.id];
                 map.removeLayer(layer);
@@ -446,7 +412,7 @@ const APP = (() => {
             UI.showDrawerForm(obj);
             UI.showSaveCancel();
 
-            // Mettre à jour la couleur du polygone selon la sévérité du formulaire
+            // Mettre à jour la couleur de la zone selon la sévérité du formulaire
             const formSeverity = document.getElementById('form-severity');
             if (formSeverity && formSeverity.value) {
                 DRAW.updateEditingPolygonColor(formSeverity.value);
@@ -454,7 +420,7 @@ const APP = (() => {
 
             // Ne pas afficher de badge/verrouillage visuel ni notification
         } catch (err) {
-            UI.notify(`Erreur lors de l'édition: ${err.message}`, 'error');
+            UI.notify(`Erreur lors de la modification: ${err.message}`, 'error');
             console.error('Error starting edit:', err);
         }
     }
@@ -467,7 +433,7 @@ const APP = (() => {
     }
 
     /**
-     * FLUX 2 & 3 : Enregistrer le polygone (créer ou mettre à jour)
+    * FLUX 2 & 3 : Enregistrer la zone (créer ou mettre à jour)
      */
     async function savePolygon() {
         const state = AppState.getState();
@@ -479,16 +445,15 @@ const APP = (() => {
         // Valider la géométrie
         const geometry = DRAW.getDrawnGeometry();
         if (!DRAW.isValidDrawing() || !geometry) {
-            UI.notify('Veuillez dessiner un polygone valide (au moins 3 points)', 'error');
+            UI.notify('Veuillez dessiner une zone valide (au moins 3 points)', 'error');
             return;
         }
 
         // Lire les champs du formulaire
-        const dangerTypeId = document.getElementById('form-danger-type').value;
         const severity = document.getElementById('form-severity').value;
         const description = document.getElementById('form-description').value;
 
-        if (!dangerTypeId || !severity) {
+        if (!severity) {
             UI.notify('Veuillez remplir tous les champs obligatoires', 'error');
             return;
         }
@@ -497,24 +462,22 @@ const APP = (() => {
             UI.updateDrawStatus('Enregistrement...');
 
             if (state.mode === 'DRAW') {
-                // Créer un nouveau polygone
+                // Créer une nouvelle zone
                 const res = await API.createMapObject({
                     geometry,
-                    danger_type_id: parseInt(dangerTypeId),
                     severity,
                     description,
                 });
-                UI.notify('Polygone créé!', 'success');
+                UI.notify('Zone créée!', 'success');
                 console.log('Object created:', res.data);
             } else if (state.mode === 'EDIT') {
-                // Mettre à jour un polygone existant
+                // Mettre à jour une zone existante
                 const res = await API.updateMapObject(state.selectedObjectId, {
                     geometry,
-                    danger_type_id: parseInt(dangerTypeId),
                     severity,
                     description,
                 });
-                UI.notify('Polygone mis à jour!', 'success');
+                UI.notify('Zone mise à jour!', 'success');
                 console.log('Object updated:', res.data);
                 // Note: Le verrou est automatiquement libéré par l'update
             }
@@ -543,7 +506,7 @@ const APP = (() => {
     }
 
     /**
-     * FLUX 5 : Supprimer un polygone
+    * FLUX 5 : Supprimer une zone
      */
     async function deletePolygon() {
         const state = AppState.getState();
@@ -554,7 +517,7 @@ const APP = (() => {
             // Pour maintenant, supprimer directement
 
             await API.deleteMapObject(state.selectedObjectId);
-            UI.notify('Polygone supprimé!', 'success');
+            UI.notify('Zone supprimée!', 'success');
 
             // Si on était en mode EDIT, nettoyer les couches d'édition
             if (state.mode === 'EDIT') {
@@ -604,7 +567,7 @@ const APP = (() => {
             }
         });
 
-        // Recharger pour restaurer les styles des polygones
+        // Recharger pour restaurer les styles des zones
         await loadMapObjects();
     }
 

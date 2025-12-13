@@ -128,7 +128,7 @@ const SOCKET = {
         await APP.loadMapObjects();
         // Don't show notification if user just created it
         if (data.object.created_by !== APP.currentUser?.id) {
-            UI.notify('Nouveau polygone ajouté à la carte', 'info');
+            UI.notify('Nouvelle zone ajoutée à la carte', 'info');
         }
     },
 
@@ -144,7 +144,7 @@ const SOCKET = {
 
         // Don't show notification if user just updated it
         if (data.object.updated_by !== APP.currentUser?.id) {
-            UI.notify('Un polygone a été mis à jour', 'info');
+            UI.notify('Une zone a été mise à jour', 'info');
         }
     },
 
@@ -157,7 +157,7 @@ const SOCKET = {
             UI.closeDrawer();
         }
 
-        UI.notify('Un polygone a été supprimé', 'info');
+        UI.notify('Une zone a été supprimée', 'info');
     },
 
     async onMapObjectLocked(data) {
@@ -173,7 +173,7 @@ const SOCKET = {
 
         // Show notification if locked by someone else
         if (data.locked_by !== APP.currentUser?.id) {
-            UI.notify(`Polygone en édition par ${data.locked_by_username}`, 'info');
+            UI.notify(`Zone en cours de modification par ${data.locked_by_username}`, 'info');
         }
     },
 

@@ -30,22 +30,11 @@ def init_db():
         )
     """)
 
-    # Danger types table (foreign key reference)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS danger_types (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT UNIQUE NOT NULL,
-            description TEXT,
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-
     # Map objects table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS map_objects (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             geometry TEXT NOT NULL,
-            danger_type_id INTEGER NOT NULL,
             severity TEXT NOT NULL CHECK(severity IN ('SAFE', 'LOW_RISK', 'RISK', 'HIGH_RISK', 'CRITICAL')),
             description TEXT,
             created_by INTEGER NOT NULL,
@@ -57,8 +46,7 @@ def init_db():
             lock_expires_at TIMESTAMP,
             FOREIGN KEY (created_by) REFERENCES users(id),
             FOREIGN KEY (updated_by) REFERENCES users(id),
-            FOREIGN KEY (locked_by) REFERENCES users(id),
-            FOREIGN KEY (danger_type_id) REFERENCES danger_types(id)
+            FOREIGN KEY (locked_by) REFERENCES users(id)
         )
     """)
 
@@ -89,10 +77,18 @@ def init_db():
     """)
 
     # Create indices for performance
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_map_objects_deleted ON map_objects(deleted_at)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_map_objects_locked ON map_objects(locked_by, lock_expires_at)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_audit_log_object ON audit_log(object_id)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_daily_quota_user_date ON daily_quota(user_id, date)")
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_map_objects_deleted ON map_objects(deleted_at)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_map_objects_locked ON map_objects(locked_by, lock_expires_at)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_audit_log_object ON audit_log(object_id)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_daily_quota_user_date ON daily_quota(user_id, date)"
+    )
 
     conn.commit()
     conn.close()

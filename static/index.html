@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Alerte Parapente – Éditeur Collaboratif de Carte</title>
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
@@ -36,13 +39,13 @@
 
     <!-- Toolbar (for authenticated users) -->
     <div id="toolbar" class="toolbar" style="display: none;">
-        <button id="btn-create" class="btn btn-success" title="Créer un polygone">
+        <button id="btn-create" class="btn btn-success" title="Créer une zone">
             ➕ Créer
         </button>
-        <button id="btn-edit" class="btn btn-info" disabled title="Éditer le polygone sélectionné">
+        <button id="btn-edit" class="btn btn-info" disabled title="Modifier la zone sélectionnée">
             ✏️ Modifier
         </button>
-        <button id="btn-delete" class="btn btn-danger" disabled title="Supprimer le polygone sélectionné">
+        <button id="btn-delete" class="btn btn-danger" disabled title="Supprimer la zone sélectionnée">
             🗑️ Supprimer
         </button>
         <div class="toolbar-separator"></div>
@@ -69,10 +72,6 @@
                     <span id="info-id"></span>
                 </div>
                 <div class="info-row">
-                    <label>Type de danger:</label>
-                    <span id="info-danger-type"></span>
-                </div>
-                <div class="info-row">
                     <label>Dangerosité:</label>
                     <span id="info-severity"></span>
                 </div>
@@ -96,17 +95,10 @@
             <!-- Edit mode -->
             <form id="drawer-form" class="drawer-section" style="display: none;">
                 <div class="form-group">
-                    <label for="form-danger-type">Type de danger:</label>
-                    <select id="form-danger-type" required>
-                        <option value="">-- Sélectionner --</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
                     <label for="form-severity">Dangerosité:</label>
                     <select id="form-severity" required>
                         <option value="">-- Sélectionner --</option>
-                        <option value="SAFE">SAFE – Aucun danger</option>
+                        <option value="SAFE">SAFE – Pas de danger identifié</option>
                         <option value="LOW_RISK">LOW_RISK – Danger faible</option>
                         <option value="RISK">RISK – Danger significatif</option>
                         <option value="HIGH_RISK">HIGH_RISK – Danger sérieux</option>
@@ -124,7 +116,7 @@
 
             <!-- No selection -->
             <div id="drawer-empty" class="drawer-section" style="text-align: center; color: #999;">
-                <p>Sélectionnez un polygone sur la carte</p>
+                <p>Sélectionnez une zone sur la carte</p>
             </div>
         </div>
     </div>
