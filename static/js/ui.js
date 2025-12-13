@@ -235,6 +235,12 @@ const UI = (() => {
      * Afficher le badge "Édition en cours"
      */
     function showLockBadge(expirySeconds) {
+        // Si pas de valeur ou temps écoulé, cacher le badge pour éviter "expiré" dès le début
+        if (expirySeconds === null || expirySeconds === undefined || expirySeconds <= 0) {
+            hideLockBadge();
+            return;
+        }
+
         let badge = document.getElementById('lock-badge');
         if (!badge) {
             const container = document.querySelector('.drawer-header');
@@ -243,6 +249,8 @@ const UI = (() => {
             badge.className = 'lock-badge';
             container.appendChild(badge);
         }
+
+        // Afficher "expiré" plutôt que 0s pour éviter la confusion
         badge.textContent = `🔒 Édition en cours (${expirySeconds}s)`;
         badge.style.display = 'block';
     }

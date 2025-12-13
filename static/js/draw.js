@@ -173,7 +173,7 @@ const DRAW = (() => {
                 },
             });
 
-            UI.updateDrawStatus('Cliquez sur la carte pour dessiner un polygone. Double-clic pour terminer.');
+            UI.updateDrawStatus('Cliquez sur la carte pour dessiner un polygone.');
             console.log('Create mode started successfully');
         } catch (err) {
             console.error('Error enabling draw mode:', err);
@@ -255,7 +255,7 @@ const DRAW = (() => {
         });
 
         currentDrawnLayer = polyLayer;
-        UI.updateDrawStatus('Édition géométrique activée. Déplacez/ajoutez/supprimez des sommets.');
+        UI.updateDrawStatus('Déplacez les sommets pour modifier.');
         console.log('Edit mode started');
     }
 

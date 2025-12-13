@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, status, Query, Depends
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 import json
 
@@ -34,6 +34,18 @@ def set_sio(socket_server):
 router = APIRouter()
 
 LOCK_DURATION_MINUTES = 15
+
+
+def parse_utc(dt_str: str) -> datetime:
+    """Parse ISO string and return timezone-aware UTC datetime."""
+    if not dt_str:
+        return None
+    dt = datetime.fromisoformat(dt_str)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        dt = dt.astimezone(timezone.utc)
+    return dt
 
 
 def serialize_map_object(row: dict, conn=None) -> MapObjectResponse:
@@ -220,8 +232,8 @@ async def checkout_object(object_id: int, user: dict = Depends(require_login)):
     # Check if already locked by someone else
     if obj["locked_by"] and obj["locked_by"] != user["id"]:
         if obj["lock_expires_at"]:
-            lock_time = datetime.fromisoformat(obj["lock_expires_at"])
-            if lock_time > datetime.utcnow():
+            lock_time = parse_utc(obj["lock_expires_at"])
+            if lock_time and lock_time > datetime.now(timezone.utc):
                 # Still locked
                 conn.close()
                 raise HTTPException(
@@ -231,7 +243,7 @@ async def checkout_object(object_id: int, user: dict = Depends(require_login)):
 
     # Acquire lock
     lock_expires = (
-        datetime.utcnow() + timedelta(minutes=LOCK_DURATION_MINUTES)
+        datetime.now(timezone.utc) + timedelta(minutes=LOCK_DURATION_MINUTES)
     ).isoformat()
     cursor.execute(
         """
@@ -337,8 +349,8 @@ async def update_map_object(
 
     # Check lock expiry
     if obj["lock_expires_at"]:
-        lock_time = datetime.fromisoformat(obj["lock_expires_at"])
-        if lock_time < datetime.utcnow():
+        lock_time = parse_utc(obj["lock_expires_at"])
+        if lock_time and lock_time < datetime.now(timezone.utc):
             conn.close()
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT, detail="Lock expired"
@@ -380,7 +392,7 @@ async def update_map_object(
             new_severity,
             new_description,
             user["id"],
-            datetime.utcnow().isoformat(),
+            datetime.now(timezone.utc).isoformat(),
             object_id,
         ),
     )
@@ -440,7 +452,7 @@ async def delete_map_object(object_id: int, user: dict = Depends(require_login))
         SET deleted_at = ?, locked_by = NULL, lock_expires_at = NULL
         WHERE id = ?
     """,
-        (datetime.utcnow().isoformat(), object_id),
+        (datetime.now(timezone.utc).isoformat(), object_id),
     )
 
     # Log audit
@@ -495,8 +507,8 @@ async def get_lock_status(object_id: int):
     locked_by, lock_expires_at = row
 
     if locked_by and lock_expires_at:
-        lock_time = datetime.fromisoformat(lock_expires_at)
-        if lock_time < datetime.utcnow():
+        lock_time = parse_utc(lock_expires_at)
+        if lock_time and lock_time < datetime.now(timezone.utc):
             # Lock expired
             return {"locked": False}
 

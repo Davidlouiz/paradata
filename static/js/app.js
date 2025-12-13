@@ -337,7 +337,7 @@ const APP = (() => {
         const btnDelete = document.getElementById('btn-delete');
         if (btnDelete) {
             btnDelete.addEventListener('click', async () => {
-                if (await UI.confirm('Supprimer', 'Êtes-vous sûr de supprimer ce polygone?')) {
+                if (await UI.confirm('Supprimer', 'Êtes-vous sûr de vouloir supprimer ce polygone\u202F?')) {
                     deletePolygon();
                 }
             });
@@ -452,10 +452,7 @@ const APP = (() => {
                 DRAW.updateEditingPolygonColor(formSeverity.value);
             }
 
-            // Afficher le badge de verrou avec timer
-            startLockTimer();
-
-            UI.notify('Objet verrouillé pour édition', 'success');
+            // Ne pas afficher de badge/verrouillage visuel ni notification
         } catch (err) {
             UI.notify(`Erreur lors de l'édition: ${err.message}`, 'error');
             console.error('Error starting edit:', err);
@@ -466,18 +463,7 @@ const APP = (() => {
      * Démarrer un timer pour afficher le temps restant avant expiration du verrou
      */
     function startLockTimer() {
-        const timerInterval = setInterval(() => {
-            const state = AppState.getState();
-            if (state.mode !== 'EDIT') {
-                clearInterval(timerInterval);
-                return;
-            }
-
-            const remaining = AppState.getLockExpirySeconds();
-            if (remaining !== null) {
-                UI.showLockBadge(remaining);
-            }
-        }, 1000);
+        // Désactivé: nous n'affichons plus le compte à rebours de verrou
     }
 
     /**
@@ -592,7 +578,8 @@ const APP = (() => {
         const state = AppState.getState();
 
         // Si en édition, libérer le verrou (sauf si déjà libéré par update)
-        if (state.mode === 'EDIT' && state.selectedObjectId && state.lockStatus.locked) {
+        // Libérer sans condition sur lockStatus, certains flux n'initialisent pas 'locked'
+        if (state.mode === 'EDIT' && state.selectedObjectId) {
             try {
                 await API.releaseObject(state.selectedObjectId);
             } catch (err) {
