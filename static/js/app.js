@@ -6,6 +6,7 @@ const APP = (() => {
     let map = null;
     let mapLayers = {}; // id -> Leaflet layer
     let stateUnsubscribe = null;
+    let pollingIntervalId = null;
 
     /**
      * Initialiser l'application
@@ -22,6 +23,13 @@ const APP = (() => {
 
         // Initialiser les modules
         DRAW.init(map);
+
+        // Initialiser WebSocket pour la synchronisation temps réel
+        try {
+            await SOCKET.init();
+        } catch (err) {
+            console.warn('WebSocket initialization failed, will use polling fallback:', err);
+        }
 
         // Vérifier l'authentification
         await checkAuth();
@@ -43,8 +51,8 @@ const APP = (() => {
         // Initialiser l'affichage utilisateur
         UI.updateUserDisplay(initialState.currentUser);
 
-        // Rafraîchir les objets de la carte toutes les 5 secondes (fallback WebSocket)
-        setInterval(loadMapObjects, 5000);
+        // Démarrer le polling comme fallback (sera arrêté si WebSocket se connecte)
+        startPolling();
 
         console.log('APP initialized');
     }
@@ -97,6 +105,25 @@ const APP = (() => {
         } catch (err) {
             UI.notify(`Erreur: ${err.message}`, 'error');
         }
+    }
+
+    /**
+     * Démarrer le polling de fallback
+     */
+    function startPolling() {
+        if (pollingIntervalId) return; // Déjà actif
+        console.log('Starting polling fallback (WebSocket disconnected)');
+        pollingIntervalId = setInterval(loadMapObjects, 5000);
+    }
+
+    /**
+     * Arrêter le polling de fallback
+     */
+    function stopPolling() {
+        if (!pollingIntervalId) return; // Déjà arrêté
+        console.log('Stopping polling fallback (WebSocket connected)');
+        clearInterval(pollingIntervalId);
+        pollingIntervalId = null;
     }
 
     /**
@@ -417,7 +444,7 @@ const APP = (() => {
             DRAW.clearDrawnLayers();
             DRAW.startEditMode(obj);
 
-            // Retirer la zone originale de la carte pour ne pas gêner l'édition
+            // Retirer la zone originale de la carte pour ne pas avoir la bordure noire
             if (mapLayers[obj.id]) {
                 const layer = mapLayers[obj.id];
                 map.removeLayer(layer);
@@ -478,6 +505,8 @@ const APP = (() => {
         try {
             UI.updateDrawStatus('Enregistrement...');
 
+            let savedObjectData = null;
+
             if (state.mode === 'DRAW') {
                 // Créer une nouvelle zone
                 const res = await API.createMapObject({
@@ -487,6 +516,7 @@ const APP = (() => {
                 });
                 UI.notify('Zone créée!', 'success');
                 console.log('Object created:', res.data);
+                savedObjectData = res.data;
             } else if (state.mode === 'EDIT') {
                 // Mettre à jour une zone existante
                 const res = await API.updateMapObject(state.selectedObjectId, {
@@ -496,14 +526,49 @@ const APP = (() => {
                 });
                 UI.notify('Zone mise à jour!', 'success');
                 console.log('Object updated:', res.data);
-                // Note: Le verrou est automatiquement libéré par l'update
+                savedObjectData = res.data;
             }
 
-            // Nettoyer et revenir au mode VIEW
-            cancelEdit();
+            // Désélectionner AVANT de mettre à jour le style (pour éviter la bordure noire)
+            AppState.setViewMode();
             AppState.deselectObject();
             UI.closeDrawer();
-            await loadMapObjects();
+
+            // Si on vient d'éditer, mettre à jour la couche cachée AVANT de la restaurer
+            if (state.mode === 'EDIT' && savedObjectData) {
+                const editedLayer = mapLayers[state.selectedObjectId];
+                if (editedLayer && editedLayer._isHidden) {
+                    // Mettre à jour les données de la couche pendant qu'elle est cachée
+                    editedLayer.objData = savedObjectData;
+                    // Mettre à jour la géométrie
+                    editedLayer.clearLayers();
+                    editedLayer.addData(savedObjectData.geometry);
+                    // Mettre à jour le style (maintenant désélectionné, pas de bordure noire)
+                    editedLayer.setStyle(getPolygonStyle(savedObjectData));
+                    // Restaurer la couche (elle a déjà les bonnes données)
+                    map.addLayer(editedLayer);
+                    editedLayer._isHidden = false;
+                }
+            }
+
+            // Restaurer les autres polygones cachés
+            Object.keys(mapLayers).forEach((id) => {
+                const layer = mapLayers[id];
+                if (layer._isHidden) {
+                    map.addLayer(layer);
+                    layer._isHidden = false;
+                }
+            });
+
+            // Nettoyer le layer d'édition Geoman (la couche mise à jour est déjà visible)
+            DRAW.stopDrawMode();
+            DRAW.clearDrawnLayers();
+            UI.hideSaveCancel();
+            UI.hideLockBadge();
+            UI.updateDrawStatus('');
+
+            // Le WebSocket mettra à jour les autres clients
+            // Pas besoin de tout recharger (évite le cintillement)
         } catch (err) {
             console.error('Error saving polygon:', err);
             let errorMessage = 'Erreur inconnue';
@@ -617,6 +682,8 @@ const APP = (() => {
         register,
         logout,
         loadMapObjects,
+        startPolling,
+        stopPolling,
     };
 })();
 

@@ -26,7 +26,6 @@ const UI = (() => {
         document.getElementById('drawer-empty').style.display = 'none';
         document.getElementById('drawer-title').textContent = `Zone #${obj.id}`;
 
-        document.getElementById('info-id').textContent = obj.id;
         document.getElementById('info-severity').textContent = getSeverityLabel(obj.severity) || '—';
         document.getElementById('info-description').textContent = obj.description || '(aucune description)';
         document.getElementById('info-author').textContent = obj.created_by_username || 'Unknown';

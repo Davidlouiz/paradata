@@ -92,6 +92,11 @@ const SOCKET = {
         this.reconnectAttempts = 0;
         UI.notify('Connecté au serveur', 'success');
 
+        // Stop polling fallback when WebSocket is connected
+        if (typeof APP !== 'undefined' && APP.stopPolling) {
+            APP.stopPolling();
+        }
+
         // Authenticate if logged in
         if (APP.currentUser) {
             this.authenticate(APP.currentUser.id);
@@ -101,6 +106,11 @@ const SOCKET = {
     onDisconnect(reason) {
         console.log('Socket.IO disconnected:', reason);
         this.connected = false;
+
+        // Start polling fallback when WebSocket disconnects
+        if (typeof APP !== 'undefined' && APP.startPolling) {
+            APP.startPolling();
+        }
 
         // Throttle repeated disconnect notifications (avoid toast spam)
         const now = Date.now();
