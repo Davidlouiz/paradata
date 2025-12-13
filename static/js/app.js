@@ -51,8 +51,12 @@ const APP = (() => {
         // Initialiser l'affichage utilisateur
         UI.updateUserDisplay(initialState.currentUser);
 
-        // Démarrer le polling comme fallback (sera arrêté si WebSocket se connecte)
-        startPolling();
+        // Démarrer le polling uniquement si le WebSocket n'est pas connecté après un court délai
+        setTimeout(() => {
+            if (!SOCKET.connected) {
+                startPolling();
+            }
+        }, 1500);
 
         console.log('APP initialized');
     }

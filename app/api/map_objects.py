@@ -282,10 +282,15 @@ async def checkout_object(object_id: int, user: dict = Depends(require_login)):
             lock_time = parse_utc(obj["lock_expires_at"])
             if lock_time and lock_time > datetime.now(timezone.utc):
                 # Still locked
+                cursor.execute(
+                    "SELECT username FROM users WHERE id = ?", (obj["locked_by"],)
+                )
+                locker = cursor.fetchone()
+                locker_username = locker[0] if locker else "un autre utilisateur"
                 conn.close()
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"Object locked by another user",
+                    detail=f"Zone déjà en cours d'édition par {locker_username}",
                 )
 
     # Acquire lock

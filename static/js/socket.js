@@ -90,7 +90,12 @@ const SOCKET = {
         console.log('Socket.IO connected');
         this.connected = true;
         this.reconnectAttempts = 0;
-        UI.notify('Connecté au serveur', 'success');
+
+        // Ne pas notifier la première connexion pour éviter le bruit
+        if (this._hasConnectedOnce) {
+            UI.notify('Connexion rétablie', 'success');
+        }
+        this._hasConnectedOnce = true;
 
         // Stop polling fallback when WebSocket is connected
         if (typeof APP !== 'undefined' && APP.stopPolling) {
@@ -127,7 +132,7 @@ const SOCKET = {
         if (reason === 'io server disconnect') {
             message = "Déconnecté par le serveur — tentative de reconnexion...";
         } else if (reason === 'transport close' || reason === 'transport error') {
-            message = "Perte de connexion réseau — reconnexion en cours...";
+            message = "Connexion réseau perdue. Reconnexion en cours...";
         }
 
         UI.notify(message, 'error');
