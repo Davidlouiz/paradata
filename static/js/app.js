@@ -690,6 +690,8 @@ const APP = (() => {
                 DRAW.stopDrawMode();
             }
 
+            // Revenir au mode VIEW et fermer le tiroir
+            AppState.setViewMode();
             AppState.deselectObject();
             UI.closeDrawer();
             await loadMapObjects();
