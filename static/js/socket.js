@@ -154,7 +154,8 @@ const SOCKET = {
 
         // Don't show notification if user just updated it
         if (data.object.updated_by !== APP.currentUser?.id) {
-            UI.notify('Une zone a été mise à jour', 'info');
+            const updatedBy = data.object.updated_by_username || 'Un autre utilisateur';
+            UI.notify(`Zone mise à jour par ${updatedBy}`, 'info');
         }
     },
 

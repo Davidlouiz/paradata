@@ -255,6 +255,18 @@ const APP = (() => {
             return;
         }
 
+        // Si on est en EDIT et qu'on clique une autre zone, basculer l'édition
+        if (state.mode === 'EDIT' && state.selectedObjectId && state.selectedObjectId !== obj.id) {
+            // Annuler l'édition courante sans ré-sélection automatique
+            cancelEdit(true).then(() => {
+                // Sélectionner la nouvelle zone et démarrer l'édition
+                AppState.selectObject(obj);
+                UI.showDrawerDetails(obj);
+                startEdit();
+            });
+            return;
+        }
+
         // Sélectionner le nouveau AVANT de mettre à jour les anciens styles
         // pour que getPolygonStyle() reflète la nouvelle sélection
         AppState.selectObject(obj);
@@ -267,11 +279,18 @@ const APP = (() => {
             }
         }
 
-        // Appliquer le style du nouveau sélectionné
-        layer.setStyle(getPolygonStyle(obj));
-
         // Afficher le panneau détails
         UI.showDrawerDetails(obj);
+
+        // En mode simplifié: si authentifié et pas déjà en EDIT, entrer en édition
+        const current = AppState.getState();
+        if (current.isAuthenticated && current.mode !== 'EDIT') {
+            // Ne pas appliquer le style noir, startEdit va cacher la couche immédiatement
+            startEdit();
+        } else {
+            // Appliquer le style du nouveau sélectionné seulement si on ne va pas en EDIT
+            layer.setStyle(getPolygonStyle(obj));
+        }
     }
 
     /**
@@ -291,19 +310,15 @@ const APP = (() => {
                 toolbar.style.display = isAuth ? 'flex' : 'none';
             }
 
-            // Mettre à jour les boutons Créer/Modifier/Supprimer selon sélection
+            // Mettre à jour le bouton Créer et le bouton Supprimer du formulaire
             const btnCreate = document.getElementById('btn-create');
-            const btnEdit = document.getElementById('btn-edit');
-            const btnDelete = document.getElementById('btn-delete');
             if (btnCreate) {
-                // Désactiver Créer lorsqu'on est déjà en mode DRAW
-                btnCreate.disabled = state.mode === 'DRAW';
+                // Désactiver Créer lorsqu'on est en mode DRAW ou EDIT
+                btnCreate.disabled = state.mode === 'DRAW' || state.mode === 'EDIT';
             }
-            if (btnEdit && btnDelete) {
-                const hasSelection = state.selectedObjectId !== null;
-                const canEdit = state.isAuthenticated && hasSelection && AppState.canEditObject();
-                btnEdit.disabled = !canEdit;
-                btnDelete.disabled = !(state.isAuthenticated && hasSelection);
+            const btnDeleteForm = document.getElementById('btn-delete-form');
+            if (btnDeleteForm) {
+                btnDeleteForm.style.display = state.mode === 'EDIT' ? 'inline-block' : 'none';
             }
 
             // Afficher/masquer le panneau latéral selon mode
@@ -330,16 +345,10 @@ const APP = (() => {
             btnCreate.addEventListener('click', startCreate);
         }
 
-        // Bouton Modifier
-        const btnEdit = document.getElementById('btn-edit');
-        if (btnEdit) {
-            btnEdit.addEventListener('click', startEdit);
-        }
-
-        // Bouton Supprimer
-        const btnDelete = document.getElementById('btn-delete');
-        if (btnDelete) {
-            btnDelete.addEventListener('click', async () => {
+        // Bouton Supprimer dans le formulaire d'édition
+        const btnDeleteForm = document.getElementById('btn-delete-form');
+        if (btnDeleteForm) {
+            btnDeleteForm.addEventListener('click', async () => {
                 if (await UI.confirm('Supprimer', 'Êtes-vous sûr de vouloir supprimer cette zone\u202F?')) {
                     deletePolygon();
                 }
@@ -356,6 +365,19 @@ const APP = (() => {
         const btnCancel = document.getElementById('btn-cancel');
         if (btnCancel) {
             btnCancel.addEventListener('click', cancelEdit);
+        }
+
+        // Bouton Fermer le drawer = Annuler si on est en EDIT/DRAW
+        const btnCloseDrawer = document.getElementById('btn-close-drawer');
+        if (btnCloseDrawer) {
+            btnCloseDrawer.addEventListener('click', () => {
+                const state = AppState.getState();
+                if (state.mode === 'DRAW' || state.mode === 'EDIT') {
+                    cancelEdit(true); // Ne pas ré-sélectionner
+                } else {
+                    UI.closeDrawer();
+                }
+            });
         }
 
         // Écouter les changements de sévérité pour mettre à jour la couleur de la zone en édition
@@ -382,19 +404,10 @@ const APP = (() => {
             if (e.key === 'Escape') {
                 const state = AppState.getState();
                 if (state.mode === 'DRAW' || state.mode === 'EDIT') {
-                    cancelEdit();
-                    AppState.deselectObject();
-                    UI.closeDrawer();
+                    cancelEdit(true); // Ne pas ré-sélectionner
                 } else if (state.selectedObjectId !== null) {
-                    const previouslySelected = state.selectedObjectId;
                     AppState.deselectObject();
                     UI.closeDrawer();
-
-                    // Rétablir le style normal sur la couche précédemment sélectionnée
-                    const layer = mapLayers[previouslySelected];
-                    if (layer) {
-                        layer.setStyle(getPolygonStyle(layer.objData));
-                    }
                 }
             }
         });
@@ -450,9 +463,16 @@ const APP = (() => {
             DRAW.clearDrawnLayers();
             DRAW.startEditMode(obj);
 
-            // Retirer la zone originale de la carte pour ne pas avoir la bordure noire
+            // Retirer la zone originale de la carte (appliquer style normal avant)
             if (mapLayers[obj.id]) {
                 const layer = mapLayers[obj.id];
+                // Appliquer le style normal (sans sélection) avant de cacher
+                layer.setStyle({
+                    color: getColorBySeverity(obj.severity),
+                    weight: 2,
+                    opacity: 0.8,
+                    fillOpacity: 0.5,
+                });
                 map.removeLayer(layer);
                 // Marquer comme caché pour pouvoir le restaurer plus tard
                 layer._isHidden = true;
@@ -483,12 +503,58 @@ const APP = (() => {
     }
 
     /**
+    * Vérifier si les données ont changé (création ou édition)
+     */
+    function hasChanges() {
+        const state = AppState.getState();
+
+        // En mode DRAW, on a toujours des changements (nouvelle zone)
+        if (state.mode === 'DRAW') {
+            return true;
+        }
+
+        // En mode EDIT, comparer les valeurs actuelles avec l'objet original
+        if (state.mode === 'EDIT' && state.editingObject) {
+            const original = state.editingObject;
+            const currentSeverity = document.getElementById('form-severity').value;
+            const currentDescription = document.getElementById('form-description').value;
+
+            // Vérifier si la sévérité ou description a changé
+            if (original.severity !== currentSeverity || original.description !== currentDescription) {
+                return true;
+            }
+
+            // Vérifier si la géométrie a changé (comparaison basique)
+            const drawnGeom = DRAW.getDrawnGeometry();
+            if (!drawnGeom) return false;
+
+            // Comparer les coordonnées
+            try {
+                const originalCoords = JSON.stringify(original.geometry.coordinates);
+                const currentCoords = JSON.stringify(drawnGeom.coordinates);
+                return originalCoords !== currentCoords;
+            } catch (err) {
+                console.warn('Error comparing geometry:', err);
+                return true; // en cas d'erreur, on considère qu'il y a des changements
+            }
+        }
+
+        return false;
+    }
+
+    /**
     * FLUX 2 & 3 : Enregistrer la zone (créer ou mettre à jour)
      */
     async function savePolygon() {
         const state = AppState.getState();
         if (!state.isAuthenticated) {
             UI.notify('Vous devez être connecté', 'error');
+            return;
+        }
+
+        // Vérifier s'il y a des changements
+        if (!hasChanges()) {
+            UI.notify('Aucune modification à enregistrer', 'info');
             return;
         }
 
@@ -634,7 +700,7 @@ const APP = (() => {
     /**
      * Annuler dessin/édition et revenir au mode VIEW
      */
-    async function cancelEdit() {
+    async function cancelEdit(skipReselect = false) {
         const state = AppState.getState();
         const wasEditingObjectId = state.selectedObjectId; // Sauvegarder avant de changer d'état
 
@@ -650,16 +716,21 @@ const APP = (() => {
 
         // Nettoyer l'état
         AppState.setViewMode();
+        // Quand on bascule d'une édition à une autre, enlever immédiatement la sélection
+        AppState.deselectObject();
+        UI.closeDrawer();
         DRAW.stopDrawMode();
         DRAW.clearDrawnLayers();
         UI.hideSaveCancel();
         UI.hideLockBadge();
         UI.updateDrawStatus('');
 
-        // Restaurer les polygones cachés
+        // Restaurer les polygones cachés avec le bon style immédiatement
         Object.keys(mapLayers).forEach((id) => {
             const layer = mapLayers[id];
             if (layer._isHidden) {
+                // Appliquer le style normal AVANT de réafficher la couche
+                layer.setStyle(getPolygonStyle(layer.objData));
                 map.addLayer(layer);
                 layer._isHidden = false;
             }
@@ -668,20 +739,16 @@ const APP = (() => {
         // Recharger les objets de la carte
         await loadMapObjects();
 
-        // Récupérer l'objet édité depuis le serveur et ré-sélectionner
-        if (wasEditingObjectId) {
+        if (!skipReselect && wasEditingObjectId) {
             try {
                 const res = await API.getMapObject(wasEditingObjectId);
                 if (res.success && res.data) {
                     const objData = res.data;
-                    // Ré-sélectionner l'objet
                     AppState.selectObject(objData);
-                    // Mettre à jour la couche si elle existe
                     if (mapLayers[wasEditingObjectId]) {
                         mapLayers[wasEditingObjectId].objData = objData;
                         mapLayers[wasEditingObjectId].setStyle(getPolygonStyle(objData));
                     }
-                    // Afficher les détails
                     UI.showDrawerDetails(objData);
                 }
             } catch (err) {

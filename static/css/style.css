@@ -330,6 +330,34 @@ body {
     font-size: 12px;
 }
 
+/* Spacing for form action buttons (Save, Cancel, Delete) */
+.form-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-top: 8px;
+    flex-wrap: wrap;
+    /* allow wrapping to avoid horizontal overflow */
+}
+
+.form-actions .btn {
+    flex: 0 1 auto;
+    /* allow buttons to shrink if needed */
+}
+
+/* Delete button positioned at bottom of drawer */
+.drawer-footer {
+    padding: 16px 20px;
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: flex-start;
+}
+
+.drawer-footer #btn-delete-form {
+    width: auto;
+    /* adaptive width, not full width */
+}
+
 /* ========== Modal ========== */
 
 .modal {

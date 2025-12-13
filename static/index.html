@@ -39,14 +39,8 @@
 
     <!-- Toolbar (for authenticated users) -->
     <div id="toolbar" class="toolbar" style="display: none;">
-        <button id="btn-create" class="btn btn-success" title="Créer une zone">
-            ➕ Créer
-        </button>
-        <button id="btn-edit" class="btn btn-info" disabled title="Modifier la zone sélectionnée">
-            ✏️ Modifier
-        </button>
-        <button id="btn-delete" class="btn btn-danger" disabled title="Supprimer la zone sélectionnée">
-            🗑️ Supprimer
+        <button id="btn-create" class="btn btn-success" title="Créer une nouvelle zone">
+            ➕ Créer une nouvelle zone
         </button>
         <span id="toolbar-status" class="toolbar-status"></span>
     </div>
@@ -118,6 +112,14 @@
             <div id="drawer-empty" class="drawer-section" style="text-align: center; color: #999;">
                 <p>Sélectionnez une zone sur la carte</p>
             </div>
+        </div>
+
+        <!-- Delete button at bottom of drawer -->
+        <div class="drawer-footer">
+            <button id="btn-delete-form" type="button" class="btn btn-danger" style="display: none;"
+                title="Supprimer cette zone">
+                🗑️ Supprimer cette zone
+            </button>
         </div>
     </div>
 
