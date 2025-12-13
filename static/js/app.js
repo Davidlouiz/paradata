@@ -292,8 +292,13 @@ const APP = (() => {
             }
 
             // Mettre à jour les boutons Créer/Modifier/Supprimer selon sélection
+            const btnCreate = document.getElementById('btn-create');
             const btnEdit = document.getElementById('btn-edit');
             const btnDelete = document.getElementById('btn-delete');
+            if (btnCreate) {
+                // Désactiver Créer lorsqu'on est déjà en mode DRAW
+                btnCreate.disabled = state.mode === 'DRAW';
+            }
             if (btnEdit && btnDelete) {
                 const hasSelection = state.selectedObjectId !== null;
                 const canEdit = state.isAuthenticated && hasSelection && AppState.canEditObject();
@@ -408,6 +413,7 @@ const APP = (() => {
         AppState.setDrawMode();
         DRAW.clearDrawnLayers();
         DRAW.startCreateMode();
+        UI.updateDrawStatus('Cliquez sur la carte pour dessiner une zone.');
         UI.showDrawerForm(); // Affiche le formulaire vide
         UI.showSaveCancel();
     }

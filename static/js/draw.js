@@ -30,6 +30,12 @@ const DRAW = (() => {
                 // via les boutons de la toolbar
                 isGeomanReady = true;
                 console.log('Leaflet-Geoman initialized (ready for programmatic use)');
+                // Forcer la langue française pour les infobulles Geoman
+                try {
+                    map.pm.setLang('fr');
+                } catch (err) {
+                    console.warn('Unable to set Geoman language to fr:', err);
+                }
                 setupGeomanListeners();
             } else {
                 attempts++;
@@ -154,26 +160,39 @@ const DRAW = (() => {
 
         currentMode = 'CREATE';
         currentDrawnLayer = null;
+        const enableDrawOnce = () => {
+            if (startCreateMode._drawEnabled) return;
+            startCreateMode._drawEnabled = true;
+            try {
+                // Activer l'outil de dessin de polygone dans Geoman
+                console.log('Calling map.pm.enableDraw("Polygon")...');
+                map.pm.enableDraw('Polygon', {
+                    snappingOrder: ['marker', 'poly'],
+                    templineStyle: {
+                        color: 'red',
+                    },
+                    hintlineStyle: {
+                        color: 'red',
+                        dashArray: [5, 5],
+                    },
+                });
 
-        try {
-            // Activer l'outil de dessin de polygone dans Geoman
-            console.log('Calling map.pm.enableDraw("Polygon")...');
-            map.pm.enableDraw('Polygon', {
-                snappingOrder: ['marker', 'poly'],
-                templineStyle: {
-                    color: 'red',
-                },
-                hintlineStyle: {
-                    color: 'red',
-                    dashArray: [5, 5],
-                },
-            });
+                UI.updateDrawStatus('Cliquez sur la carte pour dessiner une zone.');
+                console.log('Create mode started successfully');
+            } catch (err) {
+                console.error('Error enabling draw mode:', err);
+                UI.notify('Erreur lors de l\'activation du mode dessin: ' + err.message, 'error');
+            }
+        };
 
-            UI.updateDrawStatus('Cliquez sur la carte pour dessiner une zone.');
-            console.log('Create mode started successfully');
-        } catch (err) {
-            console.error('Error enabling draw mode:', err);
-            UI.notify('Erreur lors de l\'activation du mode dessin: ' + err.message, 'error');
+        // Si la souris est déjà sur la carte, activer tout de suite. Sinon, attendre l'entrée.
+        const container = map.getContainer();
+        if (container && container.matches(':hover')) {
+            enableDrawOnce();
+        } else if (container) {
+            container.addEventListener('mouseenter', enableDrawOnce, { once: true });
+        } else {
+            enableDrawOnce();
         }
     }
 
