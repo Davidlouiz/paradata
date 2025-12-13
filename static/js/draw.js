@@ -160,6 +160,8 @@ const DRAW = (() => {
 
         currentMode = 'CREATE';
         currentDrawnLayer = null;
+        // Réinitialiser le drapeau interne pour permettre une nouvelle activation
+        startCreateMode._drawEnabled = false;
         const enableDrawOnce = () => {
             if (startCreateMode._drawEnabled) return;
             startCreateMode._drawEnabled = true;
