@@ -33,6 +33,10 @@ const APP = (() => {
 
         // Vérifier l'authentification
         await checkAuth();
+        // Dès que l'état est connu, révéler les éléments masqués et labels
+        const knownState = AppState.getState();
+        updateLoginButton(knownState);
+        updateStatusIndicator(knownState);
 
         // Charger les objets de la carte
         await loadMapObjects();
@@ -47,6 +51,8 @@ const APP = (() => {
         if (toolbar) {
             toolbar.style.display = initialState.isAuthenticated ? 'flex' : 'none';
         }
+        // S'assurer que le statut de toolbar est caché s'il est vide
+        UI.updateDrawStatus('');
 
         // Initialiser l'affichage utilisateur
         UI.updateUserDisplay(initialState.currentUser);
@@ -97,7 +103,7 @@ const APP = (() => {
      * Se déconnecter
      */
     async function logout() {
-        if (!await UI.confirm('Déconnexion', 'Êtes-vous sûr?')) {
+        if (!await UI.confirm('Déconnexion', 'Êtes-vous sûr de vouloir vous déconnecter ?')) {
             return;
         }
 
@@ -332,11 +338,28 @@ const APP = (() => {
             }
 
             // Afficher le statut
-            const statusInd = document.getElementById('status-indicator');
-            if (statusInd) {
-                statusInd.textContent = state.isAuthenticated ? 'Contributeur' : 'Lecture seule';
-            }
+            updateStatusIndicator(state);
         });
+    }
+
+    /**
+     * Mettre à jour l'indicateur de statut (auth vs lecture seule)
+     */
+    function updateStatusIndicator(state) {
+        const statusInd = document.getElementById('status-indicator');
+        if (!statusInd) return;
+        statusInd.textContent = state.isAuthenticated ? 'Contributeur' : 'Lecture seule';
+        statusInd.style.display = 'inline-block';
+    }
+
+    /**
+     * Mettre à jour le bouton d'authentification
+     */
+    function updateLoginButton(state) {
+        const loginButton = document.getElementById('auth-btn');
+        if (!loginButton) return;
+        loginButton.textContent = state.isAuthenticated ? 'Se déconnecter' : 'Se connecter';
+        loginButton.style.display = 'inline-block';
     }
 
     /**
@@ -415,6 +438,86 @@ const APP = (() => {
                 }
             }
         });
+
+        // Auth: soumission login
+        const loginForm = document.getElementById('login-form');
+        if (loginForm) {
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const username = document.getElementById('login-username')?.value.trim();
+                const password = document.getElementById('login-password')?.value;
+                if (!username || !password) {
+                    UI.showAuthMessage('Veuillez remplir tous les champs', true);
+                    return;
+                }
+                try {
+                    await login(username, password);
+                    loginForm.reset();
+                    UI.hideLoginModal();
+                } catch (err) {
+                    UI.showAuthMessage(err.message || 'Échec de la connexion', true);
+                }
+            });
+        }
+
+        // Auth: soumission inscription
+        const registerForm = document.getElementById('register-form');
+        if (registerForm) {
+            registerForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const username = document.getElementById('register-username')?.value.trim();
+                const password = document.getElementById('register-password')?.value;
+                const confirmPassword = document.getElementById('register-password-confirm')?.value;
+                if (!username || !password || !confirmPassword) {
+                    UI.showAuthMessage('Veuillez remplir tous les champs', true);
+                    return;
+                }
+                if (password !== confirmPassword) {
+                    UI.showAuthMessage('Les mots de passe ne correspondent pas', true);
+                    return;
+                }
+                try {
+                    await register(username, password);
+                    registerForm.reset();
+                    UI.hideLoginModal();
+                } catch (err) {
+                    UI.showAuthMessage(err.message || "Échec de l'inscription", true);
+                }
+            });
+        }
+
+        // Auth: toggle vers inscription
+        const btnToggleRegister = document.getElementById('btn-toggle-register');
+        if (btnToggleRegister) {
+            btnToggleRegister.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('login-form')?.setAttribute('style', 'display: none;');
+                document.getElementById('register-form')?.setAttribute('style', 'display: block;');
+                const msg = document.getElementById('auth-message');
+                if (msg) msg.style.display = 'none';
+            });
+        }
+
+        // Auth: toggle retour connexion
+        const btnToggleLogin = document.getElementById('btn-toggle-login');
+        if (btnToggleLogin) {
+            btnToggleLogin.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('register-form')?.setAttribute('style', 'display: none;');
+                document.getElementById('login-form')?.setAttribute('style', 'display: block;');
+                const msg = document.getElementById('auth-message');
+                if (msg) msg.style.display = 'none';
+            });
+        }
+
+        // Auth: fermer la modale
+        const btnCloseAuth = document.getElementById('btn-close-auth');
+        if (btnCloseAuth) {
+            btnCloseAuth.addEventListener('click', (e) => {
+                e.preventDefault();
+                UI.hideLoginModal();
+            });
+        }
     }
 
     /**
