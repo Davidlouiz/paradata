@@ -13,6 +13,15 @@ const DRAW = (() => {
     let currentMode = null; // 'CREATE' | 'EDIT' | null
     let isGeomanReady = false;
 
+    function getColorBySeverity(severity) {
+        if (severity === 'CRITICAL') return '#d32f2f';
+        if (severity === 'HIGH_RISK') return '#f57c00';
+        if (severity === 'RISK') return '#fbc02d';
+        if (severity === 'LOW_RISK') return '#7cb342';
+        if (severity === 'SAFE') return '#388e3c';
+        return '#666';
+    }
+
     /**
      * Initialiser Geoman et ses contrôles
      */
@@ -110,6 +119,12 @@ const DRAW = (() => {
                 });
 
                 layer.on('pm:markerdragend', () => {
+                    if (layer._desiredColor) {
+                        layer.setStyle({ color: layer._desiredColor });
+                    }
+                });
+
+                layer.on('pm:vertexremoved', () => {
                     if (layer._desiredColor) {
                         layer.setStyle({ color: layer._desiredColor });
                     }
@@ -220,9 +235,10 @@ const DRAW = (() => {
         };
 
         // Ajouter le polygone à la map
+        const baseColor = getColorBySeverity(mapObject.severity);
         const layer = L.geoJSON(geoJsonFeature, {
             style: {
-                color: '#ff7800', // Orange par défaut
+                color: baseColor,
                 weight: 3,
                 opacity: 0.8,
                 fillOpacity: 0.2,
@@ -233,7 +249,7 @@ const DRAW = (() => {
         const polyLayer = layer.getLayers()[0];
 
         // Stocker la couleur désirée dans la couche
-        polyLayer._desiredColor = '#ff7800';
+        polyLayer._desiredColor = baseColor;
 
         // Activer l'édition pour cette couche
         polyLayer.pm.enable({
@@ -266,6 +282,12 @@ const DRAW = (() => {
         });
 
         polyLayer.on('pm:markerdragend', () => {
+            if (polyLayer._desiredColor) {
+                polyLayer.setStyle({ color: polyLayer._desiredColor });
+            }
+        });
+
+        polyLayer.on('pm:vertexremoved', () => {
             if (polyLayer._desiredColor) {
                 polyLayer.setStyle({ color: polyLayer._desiredColor });
             }
