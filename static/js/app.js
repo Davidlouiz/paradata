@@ -86,6 +86,12 @@ const APP = (() => {
         const user = await API.login(username, password);
         AppState.setCurrentUser(user);
         UI.notify('Connecté!', 'success');
+        const state = AppState.getState();
+        if (state.mode !== 'VIEW') {
+            await cancelEdit(true);
+        }
+        AppState.deselectObject();
+        restyleAllLayers();
         // TODO: Authentifier sur Socket.IO si implémenté
     }
 
@@ -96,6 +102,12 @@ const APP = (() => {
         const user = await API.register(username, password);
         AppState.setCurrentUser(user);
         UI.notify('Compte créé! Vous êtes connecté.', 'success');
+        const state = AppState.getState();
+        if (state.mode !== 'VIEW') {
+            await cancelEdit(true);
+        }
+        AppState.deselectObject();
+        restyleAllLayers();
         // TODO: Authentifier sur Socket.IO si implémenté
     }
 
@@ -108,10 +120,15 @@ const APP = (() => {
         }
 
         try {
+            const state = AppState.getState();
+            if (state.mode === 'EDIT' || state.mode === 'DRAW') {
+                await cancelEdit(true);
+            }
             await API.logout();
             AppState.setCurrentUser(null);
             UI.notify('Déconnecté!', 'success');
             AppState.deselectObject();
+            restyleAllLayers();
         } catch (err) {
             UI.notify(`Erreur: ${err.message}`, 'error');
         }
@@ -252,6 +269,17 @@ const APP = (() => {
             fillOpacity: isLocked ? 0.3 : 0.5,
             dashArray: isLocked ? '5, 5' : undefined,
         };
+    }
+
+    /**
+     * Réappliquer le style standard à toutes les couches (utile après désélection globale)
+     */
+    function restyleAllLayers() {
+        Object.values(mapLayers).forEach((layer) => {
+            if (layer?.objData) {
+                layer.setStyle(getPolygonStyle(layer.objData));
+            }
+        });
     }
 
     /**
@@ -835,6 +863,9 @@ const APP = (() => {
         UI.hideSaveCancel();
         UI.hideLockBadge();
         UI.updateDrawStatus('');
+
+        // Réappliquer le style standard maintenant que rien n'est sélectionné
+        restyleAllLayers();
 
         // Restaurer les polygones cachés avec le bon style immédiatement
         Object.keys(mapLayers).forEach((id) => {
