@@ -38,10 +38,19 @@ router = APIRouter()
 def _geometry_intersects_existing(
     conn, new_geom_json: dict, exclude_id: int | None = None
 ) -> bool:
-    """Return True if new geometry intersects any existing non-deleted geometry."""
-    AREA_EPSILON = 1e-7  # tolerate tiny numeric overlaps
+    """Return True if new geometry intersects any existing non-deleted geometry.
+
+    Erodes both geometries by ~10cm (0.00001°) to tolerate boundary contacts.
+    """
+    AREA_EPSILON = 1e-10  # tolerate tiny numeric overlaps
+    BUFFER_DISTANCE = 0.00001  # ~10cm buffer for boundary tolerance
+
     try:
         new_geom = shape(new_geom_json)
+        # Erode the new geometry slightly to avoid boundary conflicts
+        new_geom = new_geom.buffer(-BUFFER_DISTANCE)
+        if new_geom.is_empty:
+            return False
     except Exception:
         return False
 
@@ -60,6 +69,10 @@ def _geometry_intersects_existing(
             continue
         try:
             existing = shape(json.loads(row[1]))
+            # Erode the existing geometry slightly to avoid boundary conflicts
+            existing = existing.buffer(-BUFFER_DISTANCE)
+            if existing.is_empty:
+                continue
         except Exception:
             continue
         if not new_geom.intersects(existing):

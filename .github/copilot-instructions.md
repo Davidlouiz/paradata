@@ -2,226 +2,252 @@
 
 ## Project Overview
 
-**Alerte Parapente** is a collaborative, real-time web map editor for paragliding hazard alerts. Non-authenticated users can view hazard polygons; authenticated users can create, edit, and delete them with transactional integrity and audit trails.
+**Alerte Parapente** is a real-time collaborative web map editor for paragliding hazard alerts. Non-authenticated users can view hazard polygons; authenticated users create, edit, and delete them with transactional locks and audit trails.
 
 ### Core Principles
-- **Public read, authenticated write**: Anyone views the map; only logged-in users modify polygons
-- **Transactional locks**: Only one user can edit an object at a time via a temporary lock mechanism
-- **Linear history**: No branching; each object has one current version
-- **Traceable changes**: All modifications record author + timestamp
-- **Daily quotas**: Users have rate limits on modifications
+- **Public read, authenticated write**: Anyone views; only logged-in users modify polygons
+- **Transactional locks**: One user per object at a time; 15-minute expiry
+- **Linear history**: Single current version per object; soft-delete only
+- **Traceable changes**: All modifications record author + timestamp  
+- **Daily quotas**: 20 modifications per user per day; enforced at API level
 
 ---
 
 ## Architecture
 
 ### Tech Stack
-- **Backend**: FastAPI (Python) – RESTful API, type-hinted, serves static files
-- **Database**: SQLite – simple, deployable, schema evolution-friendly
-- **Frontend**: Single-page app (SPA) using Leaflet for lightweight, performant maps
-- **Data Model**: GeoJSON polygons with danger type, severity level, description, metadata
+- **Backend**: FastAPI (Python 3.x) + Socket.IO for real-time sync
+- **Database**: SQLite (`alerte_parapente.db`) with foreign keys enabled
+- **Frontend**: Vanilla JS + Leaflet.js + Leaflet-Draw (polygon editing)
+- **Real-time**: Socket.IO manages WebSocket connections; fallback to polling
+- **Data**: GeoJSON polygons with `severity` enum, description, geometry validation via Shapely
 
-### Key Components
+### Key Architectural Points
 
-#### Backend API (`FastAPI`)
-- **Public endpoints** (no auth):
-  - `GET /map-objects` – fetch polygons in bbox
-  - `GET /map-objects/{id}` – fetch single object
-  - `GET /auth/me` – return current user or null
-  
-- **Authenticated endpoints** (require login):
-  - `POST /map-objects` – create polygon
-  - `POST /map-objects/{id}/checkout` – acquire lock
-  - `POST /map-objects/{id}/release` – release lock
-  - `PUT /map-objects/{id}` – update (only if locked by current user)
-  - `DELETE /map-objects/{id}` – soft-delete (marks deleted, hides from public API)
-  - `POST /auth/login`, `POST /auth/logout`
+**Backend (FastAPI + Socket.IO in app/main.py)**:
+- Socket.IO wraps FastAPI via `ASGIApp(sio, app)` – single ASGI app serves both REST + WebSocket
+- `ConnectionManager` (ws_manager.py) tracks `sid -> user_id` mappings and broadcasts events
+- Static files served by FastAPI; frontend is pure SPA
+- All responses use `{ success, data, error }` JSON format
 
-- **Quota enforcement**: Check daily usage before each write; block if exceeded
+**Database (SQLite)**:
+- Schema initialized in `database.py:init_db()` – creates if missing
+- Tables: `users`, `map_objects`, `audit_log`, `daily_quota`
+- Indices on `deleted_at`, `locked_by`/`lock_expires_at`, `object_id` for performance
+- Foreign key constraints enforced (`PRAGMA foreign_keys = ON`)
 
-#### Frontend (Leaflet SPA)
-- **States**:
-  - Visitor (read-only)
-  - Authenticated (can create/edit/delete)
-  - In-draw (creating new polygon)
-  - Locked (editing reserved polygon)
-  
-- **Key interactions**:
-  - Click polygon → open detail drawer
-  - "Create polygon" → activate draw mode → record type/severity/description → save
-  - "Edit" → `POST /checkout` → enable geometry tools → save → `PUT` → auto-release lock
-  - Lock conflict → show "Edited by [user]" + disable edit button
-  - Esc key cancels drawing/editing
-
-#### Database Schema
-- `map_objects` table:
-  - `id`, `geometry` (GeoJSON), `danger_type`, `severity`, `description`
-  - `created_by` (user_id), `created_at`, `updated_by`, `updated_at`, `deleted_at`
-  - `locked_by` (user_id or null), `lock_expires_at`
-  
-- `users` table:
-  - `id`, `username`, `password_hash`, `created_at`
-  
-- `audit_log` table (optional):
-  - `id`, `object_id`, `action`, `user_id`, `timestamp`, `before_data`, `after_data`
+**Frontend (vanilla JS modules)**:
+- `AppState` manages app-level state: `mode` (VIEW/DRAW/EDIT), `currentUser`, `selectedObject`, `lockStatus`
+- `API` wraps all HTTP calls; stores JWT in `localStorage['token']`
+- `SOCKET` handles real-time sync; re-connects and publishes events like `object:created`, `object:updated`, `lock:acquired`
+- `DRAW` manages Leaflet-Draw for polygon creation/editing; coordinates with `AppState`
+- Map layers keyed by object ID; updated on socket events
 
 ---
 
-## Critical Workflows
+## Critical Implementation Details
 
-### Creating a Polygon
-1. User clicks "Create"
-2. Frontend enters draw mode (Leaflet draw plugin or custom)
-3. User completes polygon → form opens with danger_type, severity, description
-4. On "Save": `POST /map-objects` with geometry + metadata
-5. Backend validates geometry, checks quotas, inserts, returns object with ID
-6. Frontend adds to map locally
+### Lock Workflow (Central to Everything)
+1. **Checkout** (`POST /map-objects/{id}/checkout`):
+   - Validates object not deleted + not locked or lock expired
+   - Sets `locked_by = user_id`, `lock_expires_at = now + 15 min`
+   - Emits `lock:acquired` via Socket.IO; other clients see "Locked by [user]"
+   - Frontend transitions to EDIT mode, enables geometry tools
 
-### Editing a Polygon
-1. User selects polygon → clicks "Edit"
-2. `POST /map-objects/{id}/checkout` to acquire lock
-3. If lock acquired:
-   - Unlock geometry for modification
-   - Show "Locked until [time]" indicator
-   - Enable save/cancel buttons
-4. User modifies geometry/metadata
-5. On "Save": `PUT /map-objects/{id}` with new data
-6. Backend validates, updates object, auto-releases lock
-7. Frontend updates map, refreshes UI
-8. On "Cancel": `POST /map-objects/{id}/release` → discard changes
+2. **Update** (`PUT /map-objects/{id}`):
+   - Only accepts if `locked_by == current_user` (403 if not)
+   - Validates geometry via Shapely (GeoJSON → shape object)
+   - **Intersection check**: `_geometry_intersects_existing()` allows boundary contacts but blocks meaningful overlaps (area > 1e-7)
+   - Updates `updated_by`, `updated_at`; records in audit log
+   - Auto-releases lock (sets `locked_by = NULL`)
+   - Emits `object:updated` to all clients
 
-### Lock Expiry Handling
-- Lock expires after (e.g.) 15 minutes
-- If user tries to save after expiry: backend returns 409 Conflict
-- Frontend should prompt: "Lock expired. Acquire new lock?" → retry checkout
+3. **Release** (`POST /map-objects/{id}/release`):
+   - Clears lock without modifying object
+   - Used on cancel; lock also auto-releases after 15 min
 
-### Deletion
-- User clicks "Delete" on selected polygon
-- Confirmation dialog
-- `DELETE /map-objects/{id}`
-- Backend sets `deleted_at`, removes from public API responses
-- Frontend removes from map immediately
+4. **Lock Expiry**:
+   - Frontend cannot know exact expiry server-side; checks timestamp sent from server
+   - If `PUT` after expiry: backend returns 409 Conflict; frontend prompts "Retry checkout?"
+
+### Quota Enforcement (quota.py)
+- **Limit**: 20 per user per day (tracked in `daily_quota` table by user_id + date)
+- **Check**: Before `POST /map-objects` or `PUT`, call `check_daily_quota(user_id)`; returns bool
+- **Increment**: After successful write, call `increment_daily_quota(user_id)` (UPSERT pattern)
+- **Remaining**: `get_remaining_quota(user_id)` returned to frontend; blocks UI if 0
+
+### Soft Delete
+- `DELETE /map-objects/{id}` sets `deleted_at = now`; never removes row
+- Public API (`GET /map-objects`) filters `WHERE deleted_at IS NULL`
+- Audit log preserved; deleted object visible to admins (if audit endpoint added)
+
+### Authentication (auth.py)
+- **JWT**: 30-day tokens; stored in `localStorage['token']`; sent via `Authorization: Bearer <token>` header
+- **Password**: Hashed with bcrypt (`passlib[bcrypt]`)
+- **Get current user**: `get_current_user()` dependency decodes JWT + queries DB; returns user dict or None
+- **Require login**: `@require_login` decorator wraps authenticated endpoints; raises 401 if not authed
+
+### Geometry Validation (map_objects.py)
+- **Input**: GeoJSON dict (type + coordinates)
+- **Shapely check**: `shape(geom_json)` must not raise; validates format
+- **Intersection**: Compares with all non-deleted objects; blocks if area > 1e-7
+- **Error**: Returns 422 with detail if invalid
 
 ---
 
-## Project-Specific Conventions
+## Frontend State Machine (app-state.js)
 
-### API Response Format
-All endpoints return JSON with consistent structure:
-```json
+```
+       VIEW (default)
+      /    \
+   DRAW    EDIT
+    |        |
+   (finish)  (checkout ok)
+    |        |
+   POST /map-objects  PUT /map-objects
+    |                 |
+   (callback)      (release lock)
+    |                 |
+   broadcast         broadcast
+   all clients       all clients
+```
+
+**State shape**:
+```javascript
 {
-  "success": true,
-  "data": {...},
-  "error": null
+  mode: 'VIEW' | 'DRAW' | 'EDIT',
+  isAuthenticated: bool,
+  currentUser: { id, username, ... } | null,
+  selectedObjectId: int | null,
+  selectedObject: MapObjectResponse | null,
+  editingObject: MapObjectResponse | null, // copy before PUT
+  lockStatus: { locked_by, lock_expires_at } | null,
+  drawnGeometry: GeoJSON | null,
+  remainingQuota: int | null,
 }
 ```
 
-### Validation Rules
-- **Geometry**: Must be valid GeoJSON Polygon or MultiPolygon; coordinate bounds checked
-- **Severity level**: Enum (`SAFE`, `LOW_RISK`, `RISK`, `HIGH_RISK`, `CRITICAL`)
-- **Description**: Max 500 chars
-- **Danger type**: Predefined set via foreign key; to be defined (placeholder: danger_types table)
-
-### Lock Semantics
-- Lock acquired on `checkout` = only this user can call `PUT /map-objects/{id}`
-- Attempting `PUT` without lock returns 403 Forbidden
-- Lock expires automatically; user can re-checkout anytime
-- `release` clears lock without modifying data
-
-### Frontend State Management
-- Use React hooks or similar for:
-  - Current user + auth state
-  - Selected polygon
-  - Draw mode active / edit mode active
-  - Lock status of selected object
-  - Local unsaved changes flag
-
-### Error Handling
-- 401 Unauthorized → redirect to login
-- 403 Forbidden (object locked) → show "In use by [user]" + disable edit
-- 409 Conflict (lock expired) → prompt retry
-- 422 Unprocessable (invalid geometry) → show field-level errors
-- 429 Too Many Requests (quota) → show "Daily limit reached; retry after [time]"
+**Subscribe to changes**: `AppState.subscribe(callback)` – called on every state mutation; re-render UI
 
 ---
 
-## Key Files & Patterns
+## Real-Time Sync (Socket.IO in socket.js + main.py)
 
-### Backend Structure
-- `app/main.py` – FastAPI app initialization, CORS, middleware
-- `app/api/map_objects.py` – endpoints for CRUD + locking
-- `app/api/auth.py` – login/logout/me endpoints
-- `app/models.py` – Pydantic schemas (request/response)
-- `app/database.py` – SQLite setup, session management
-- `app/services/quota.py` – daily usage tracking
-- `app/static/` – served by FastAPI (HTML, JS, CSS)
+**Events emitted by server**:
+- `object:created` – new polygon; all clients add to map
+- `object:updated` – geometry/severity changed; all clients refresh
+- `object:deleted` – soft-delete; remove from all clients' maps
+- `lock:acquired` – user acquired lock; other clients see "In use"
+- `lock:released` – lock freed; other clients can edit
 
-### Frontend Structure
-- `static/index.html` – single page
-- `static/js/app.js` – main app entry, Leaflet map setup, state
-- `static/js/api.js` – HTTP client wrapper for all endpoints
-- `static/js/ui.js` – drawer, toolbar, dialogs
-- `static/js/draw.js` – polygon draw/edit modes
-- `static/css/style.css` – map, drawer, responsive
+**Flow**:
+1. Frontend connects; sends `auth_user` event with user_id (if authed)
+2. Backend stores in `ConnectionManager`; socket event handler broadcasts to all sids
+3. On DB change, backend emits event; middleware can inject data or just signal change
+4. Frontend re-fetches object or updates local layer
 
-### Common Patterns
-- **Auth guard**: Wrap authenticated endpoints with `@require_login` decorator
-- **Quota check**: Call `check_daily_quota(user_id)` before writes
-- **Lock validation**: Before `PUT`, verify `lock_owner == current_user`
-- **Soft delete**: Never hard-delete; set `deleted_at`, filter from queries
-- **CORS**: Allow frontend domain in FastAPI CORS middleware
+**Fallback**: If Socket.IO unavailable, frontend falls back to polling (configurable interval)
 
 ---
 
-## Deployment & Development
+## Common Patterns & Conventions
 
-### Local Development
+**Auth guard** (API endpoints):
+```python
+from app.api.auth import require_login
+
+@router.post("/map-objects")
+async def create(user: dict = Depends(require_login), ...):
+    # user is guaranteed non-null here
+```
+
+**Quota check** (before writes):
+```python
+from app.services.quota import check_daily_quota
+
+if not check_daily_quota(user['id']):
+    raise HTTPException(status_code=429, detail="Daily limit reached")
+increment_daily_quota(user['id'])  # After successful insert
+```
+
+**Soft delete** (queries):
+```sql
+SELECT * FROM map_objects WHERE deleted_at IS NULL
+```
+
+**Lock validation** (before PUT):
+```python
+if obj['locked_by'] != user['id']:
+    raise HTTPException(status_code=403, detail="Object locked")
+```
+
+**WebSocket broadcast** (after DB change):
+```python
+await sio.emit('object:updated', data, to=[user's sids])  # or to all
+```
+
+**Frontend API calls** (api.js):
+```javascript
+const res = await API.request('POST', '/map-objects', { geometry, severity, description });
+if (res.success) {
+  // update state, emit event
+}
+```
+
+---
+
+## Development Workflow
+
+### Local Setup
 ```bash
-# Backend
-python -m venv venv
-source venv/bin/activate
-pip install fastapi uvicorn sqlite3
+cd /home/david/git/alerte-parapente
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
 uvicorn app.main:app --reload
-
-# Frontend
 # Browser: http://localhost:8000
 ```
 
-### Database Initialization
-- SQLite creates schema on first run if tables don't exist
-- Or run migration script to seed initial state
-
-### Real-Time Synchronization (WebSocket/SSE)
-- Implement WebSocket or Server-Sent Events for live updates
-- Broadcast on create/edit/delete: notify all connected clients
-- Lock status propagates in real-time; other users see when object becomes editable
-- Frontend unsubscribes/resubscribes on connection loss
+### Common Tasks
+- **Add endpoint**: Create in `app/api/*.py`, include in `app/main.py:app.include_router()`
+- **Add database field**: Modify schema in `database.py:init_db()` (SQLite auto-creates on first run; manual migration for existing DBs)
+- **Add real-time event**: Emit in `map_objects.py`, handle in `socket.js` event listeners
+- **Debug locks**: Check `sqlite3 alerte_parapente.db "SELECT id, locked_by, lock_expires_at FROM map_objects;"`
+- **Clear quota**: `sqlite3 alerte_parapente.db "DELETE FROM daily_quota;"`
 
 ### Testing Checklist
-- Create polygon as authenticated user → verify appears on map + real-time propagation to other clients
-- Edit it → confirm lock acquired → modify geometry → save → lock released
-- Second user tries edit while first locks → should see "In use" message (real-time)
-- Delete polygon → confirm soft-delete, hidden from public API, removed from all clients' maps
-- Quota: create 10+ objects one day, verify 11th blocked
-- Verify lock expiry after 15 minutes
+1. **Create polygon**: POST → verify appears on all clients' maps in real-time (Socket.IO)
+2. **Edit with lock**: Checkout → modify → PUT → verify lock auto-releases; other clients can edit
+3. **Lock conflict**: Two users simultaneously try to edit; second sees "In use by [user]"
+4. **Quota limit**: Create 20+ objects in one day; 21st blocked (429)
+5. **Intersection**: Draw polygon overlapping existing; verify rejected (422)
+6. **Soft delete**: Delete → verify hidden from public API; row still in DB
+7. **Lock expiry**: Acquire lock → wait 15+ min → try PUT → should get 409 or forced re-checkout
+
+### Key Files Reference
+- **Backend entry**: `app/main.py`
+- **API endpoints**: `app/api/map_objects.py` (CRUD + locking), `app/api/auth.py`
+- **Services**: `app/services/quota.py`, `app/services/ws_manager.py`
+- **Database**: `app/database.py` (schema + connection)
+- **Frontend logic**: `static/js/app-state.js` (state), `static/js/socket.js` (real-time), `static/js/api.js` (HTTP)
+- **UI**: `static/js/ui.js`, `static/css/style.css`
 
 ---
 
 ## When Adding Features
 
-1. **Understand the lock model first** – it's non-obvious and central to correctness
-2. **Preserve soft-delete semantics** – never actually remove rows, filter by `deleted_at`
-3. **Keep geometry validation strict** – invalid polygons break the map layer
-4. **Always check quotas** before accepting writes
-5. **Test lock expiry race conditions** – what if user saves after lock expires?
-6. **Maintain audit trail** – log who changed what and when
+1. **Understand lock semantics** – most bugs involve mishandled lock state
+2. **Validate geometry early** – Shapely catches bad GeoJSON; validate bbox/intersection too
+3. **Check quotas before writes** – always call before `INSERT`/`UPDATE`
+4. **Emit socket events** – broadcast changes so all clients stay in sync
+5. **Test lock expiry** – edge case: what if user clicks save just after 15-min expiry?
+6. **Preserve audit trail** – always log who changed what in `audit_log`
+7. **Filter soft-deletes** – all queries should include `WHERE deleted_at IS NULL`
 
 ---
 
-## References
-
-- **Leaflet**: https://leafletjs.com (map layer, draw plugin)
-- **FastAPI**: https://fastapi.tiangolo.com (API framework)
-- **GeoJSON**: https://geojson.org (polygon format)
-- **SQLite**: https://sqlite.org (database)
+## Security Notes
+- **SECRET_KEY** in `auth.py` is placeholder; set from env in production
+- **CORS**: Currently allows all origins; restrict in production
+- **JWT expiry**: 30 days; short for production (adjust `ACCESS_TOKEN_EXPIRE_MINUTES`)
+- **SQLite**: Fine for single-server; switch to PostgreSQL for distributed deployments
 
