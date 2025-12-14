@@ -166,6 +166,9 @@ const UI = (() => {
         const panel = document.getElementById('toolbar-quota');
         const valuesEl = document.getElementById('toolbar-quota-values');
         const shell = panel?.closest('.toolbar-shell');
+        const infoBtn = document.getElementById('quota-info-btn');
+        const modal = document.getElementById('quota-modal');
+        const modalClose = document.getElementById('quota-modal-close');
         if (!panel || !valuesEl) return;
 
         if (!quota) {
@@ -195,6 +198,41 @@ const UI = (() => {
         `;
         panel.style.display = 'flex';
         if (shell) shell.style.display = 'flex';
+
+        // Attach info modal handlers once
+        if (infoBtn && modal && !infoBtn._handlersBound) {
+            infoBtn._handlersBound = true;
+            infoBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isShown = modal.style.display === 'flex';
+                modal.style.display = isShown ? 'none' : 'flex';
+                const body = modal.querySelector('.modal-body');
+                if (body) {
+                    body.innerHTML = `
+                        <p>Vous disposez d’un nombre limité de créations, modifications et suppressions par jour.</p>
+                        <p>Une fois la limite atteinte, l’opération correspondante est bloquée jusqu’au lendemain.</p>
+                        <p>Cas particulier : juste après avoir créé une zone, vous pouvez encore la modifier ou la supprimer sans que cela ne compte dans la limite.</p>
+                    `;
+                }
+            });
+            // Close button
+            if (modalClose) {
+                modalClose.addEventListener('click', () => { modal.style.display = 'none'; });
+            }
+            // Hide on outside click (backdrop)
+            document.addEventListener('click', (e) => {
+                if (!modal || modal.style.display !== 'flex') return;
+                const content = modal.querySelector('.modal-content');
+                const within = content.contains(e.target) || infoBtn.contains(e.target);
+                if (!within) modal.style.display = 'none';
+            });
+            // Escape key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && modal && modal.style.display === 'flex') {
+                    modal.style.display = 'none';
+                }
+            });
+        }
     }
 
     function notify(msg, type = 'info', duration = 3000) {
