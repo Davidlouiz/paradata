@@ -93,6 +93,7 @@ body {
     z-index: 99;
     align-self: flex-start;
     width: auto;
+    pointer-events: auto;
 }
 
 #toolbar-shell-container {
@@ -104,6 +105,7 @@ body {
     gap: 12px;
     align-items: flex-start;
     z-index: 99;
+    pointer-events: none;
 }
 
 .toolbar {
