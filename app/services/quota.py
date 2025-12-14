@@ -8,7 +8,12 @@ DAILY_DELETE_LIMIT = 5
 
 
 def get_daily_usage_breakdown(user_id: int) -> dict:
-    """Get breakdown of today's actions by type (CREATE, UPDATE, DELETE)."""
+    """Get breakdown of today's actions by type (CREATE, UPDATE, DELETE).
+
+    Special handling:
+    - GRACE_DELETE does not count toward DELETE.
+    - Each GRACE_DELETE "restores" one CREATE (subtracts from today's CREATE, not below 0).
+    """
     conn = get_db()
     cursor = conn.cursor()
 
@@ -29,6 +34,21 @@ def get_daily_usage_breakdown(user_id: int) -> dict:
     for row in cursor.fetchall():
         action, count = row[0], row[1]
         breakdown[action] = count
+
+    # Count GRACE_DELETE entries for today (do not count as DELETE; restore CREATE)
+    cursor.execute(
+        """
+        SELECT COUNT(*) FROM audit_log
+        WHERE user_id = ? AND DATE(timestamp) = ? AND action = 'GRACE_DELETE'
+        """,
+        (user_id, today),
+    )
+    grace_delete_count = cursor.fetchone()[0] or 0
+
+    if grace_delete_count:
+        # Restore CREATE by subtracting GRACE_DELETE count, not below zero
+        breakdown["CREATE"] = max(0, breakdown["CREATE"] - grace_delete_count)
+        # DELETE is already unaffected since GRACE_DELETE isn't included above
 
     conn.close()
     return breakdown
