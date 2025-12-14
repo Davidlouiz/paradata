@@ -15,7 +15,7 @@ const DRAW = (() => {
 
     function getColorBySeverity(severity) {
         if (severity === 'CRITICAL') return '#d32f2f';
-        if (severity === 'HIGH_RISK') return '#f57c00';
+        if (severity === 'HIGH_RISK') return '#d32f2f';
         if (severity === 'RISK') return '#fbc02d';
         if (severity === 'LOW_RISK') return '#7cb342';
         if (severity === 'SAFE') return '#388e3c';
