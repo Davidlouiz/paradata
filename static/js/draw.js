@@ -308,7 +308,7 @@ const DRAW = (() => {
         // Déterminer la couleur selon la sévérité
         let color = '#666'; // Gris foncé par défaut (pas de sévérité)
         if (severity === 'CRITICAL') color = '#d32f2f';
-        else if (severity === 'HIGH_RISK') color = '#f57c00';
+        else if (severity === 'HIGH_RISK') color = '#d32f2f';
         else if (severity === 'RISK') color = '#fbc02d';
         else if (severity === 'LOW_RISK') color = '#7cb342';
         else if (severity === 'SAFE') color = '#388e3c';

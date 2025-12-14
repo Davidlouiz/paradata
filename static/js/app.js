@@ -567,6 +567,48 @@ const APP = (() => {
                 UI.hideLoginModal();
             });
         }
+
+        // Danger Help Modal
+        const dangerHelpLink = document.getElementById('danger-help-link');
+        if (dangerHelpLink) {
+            dangerHelpLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                UI.openDangerHelpModal();
+            });
+        }
+
+        const dangerHelpModal = document.getElementById('danger-help-modal');
+        if (dangerHelpModal) {
+            // Empêcher les cliques sur le modal de passer au travers
+            dangerHelpModal.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+
+            // Fermer en cliquant sur le backdrop (extérieur du modal-content)
+            dangerHelpModal.addEventListener('click', (e) => {
+                if (e.target === dangerHelpModal) {
+                    UI.closeDangerHelpModal();
+                }
+            });
+
+            // Fermer en cliquant le bouton X
+            const closeBtn = dangerHelpModal.querySelector('.modal-close');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    UI.closeDangerHelpModal();
+                });
+            }
+
+            // Fermer avec Échap
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && dangerHelpModal.style.display !== 'none') {
+                    e.preventDefault();
+                    UI.closeDangerHelpModal();
+                }
+            });
+        }
     }
 
     /**

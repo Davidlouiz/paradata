@@ -371,6 +371,16 @@ const UI = (() => {
         }
     }
 
+    function openDangerHelpModal() {
+        const modal = document.getElementById('danger-help-modal');
+        if (modal) modal.style.display = 'flex';
+    }
+
+    function closeDangerHelpModal() {
+        const modal = document.getElementById('danger-help-modal');
+        if (modal) modal.style.display = 'none';
+    }
+
     return {
         showDrawerDetails,
         showDrawerForm,
@@ -389,5 +399,7 @@ const UI = (() => {
         hideLoginModal,
         showAuthMessage,
         updateCharCount,
+        openDangerHelpModal,
+        closeDangerHelpModal,
     };
 })();

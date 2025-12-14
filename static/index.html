@@ -60,6 +60,31 @@
             </div>
         </div>
 
+        <!-- Danger Help Modal -->
+        <div id="danger-help-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <button class="modal-close" aria-label="Fermer">&times;</button>
+                <h3>Comment choisir le niveau de dangerosité ?</h3>
+                <p>
+                    Cette carte classe chaque zone selon un niveau de danger afin de déterminer
+                    qui sera notifié lorsqu'un parapentiste se pose dans la zone.
+                </p>
+
+                <h4>Niveaux de danger</h4>
+                <ul>
+                    <li>
+                        <strong>Danger faible</strong> : aucune notification.
+                    </li>
+                    <li>
+                        <strong>Danger modéré</strong> : responsables notifiés (si définis).
+                    </li>
+                    <li>
+                        <strong>Danger sérieux</strong> : communauté notifiée, responsables notifiés (si définis).
+                    </li>
+                </ul>
+            </div>
+        </div>
+
         <div class="toolbar-shell">
             <!-- Toolbar (for authenticated users) -->
             <div id="toolbar" class="toolbar" style="display: none;">
@@ -112,7 +137,10 @@
             <!-- Edit mode -->
             <form id="drawer-form" class="drawer-section" style="display: none;">
                 <div class="form-group">
-                    <label for="form-severity">Dangerosité:</label>
+                    <div class="form-label-row">
+                        <label for="form-severity">Dangerosité:</label>
+                        <a href="#" id="danger-help-link" class="danger-help-link">Comment choisir ?</a>
+                    </div>
                     <select id="form-severity" required>
                         <option value="">-- Sélectionner --</option>
                         <option value="LOW_RISK">Danger faible</option>
