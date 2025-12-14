@@ -88,6 +88,11 @@ const API = {
         return res.data; // Can be null if not authenticated
     },
 
+    async getMyQuota() {
+        const res = await this.request('GET', '/auth/quota');
+        return res.data;
+    },
+
     // ========== Map Objects Endpoints ==========
 
     async listMapObjects(bbox) {

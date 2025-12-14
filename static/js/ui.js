@@ -104,10 +104,11 @@ const UI = (() => {
         }
     }
 
-    function updateUserDisplay(user) {
+    async function updateUserDisplay(user) {
         const display = document.getElementById('user-display');
         const btn = document.getElementById('auth-btn');
         const statusInd = document.getElementById('status-indicator');
+        const quotaEl = document.getElementById('user-quota');
 
         if (user) {
             if (display) display.textContent = user.username;
@@ -120,6 +121,19 @@ const UI = (() => {
                 statusInd.textContent = 'Contributeur';
                 statusInd.style.display = 'inline-block';
             }
+
+            // Fetch and display per-action quotas next to username
+            try {
+                const q = await API.getMyQuota();
+                if (quotaEl && q) {
+                    const c = q.create, u = q.update, d = q.delete;
+                    quotaEl.textContent = ` (C ${c.used}/${c.limit} · M ${u.used}/${u.limit} · S ${d.used}/${d.limit})`;
+                    quotaEl.style.display = 'inline';
+                }
+            } catch (e) {
+                if (quotaEl) quotaEl.style.display = 'none';
+                console.warn('Failed to load quota', e);
+            }
         } else {
             if (display) display.textContent = '';
             if (btn) {
@@ -131,6 +145,7 @@ const UI = (() => {
                 statusInd.textContent = 'Lecture seule';
                 statusInd.style.display = 'inline-block';
             }
+            if (quotaEl) quotaEl.style.display = 'none';
         }
     }
 

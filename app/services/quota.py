@@ -1,54 +1,14 @@
 from datetime import date
-from app.database import get_db, dict_from_row
+from app.database import get_db
 
-DAILY_QUOTA_LIMIT = 30  # Max objects per user per day
-
-
-def get_daily_usage(user_id: int) -> int:
-    """Get number of creations/modifications by user today."""
-    conn = get_db()
-    cursor = conn.cursor()
-
-    today = str(date.today())
-
-    # Compter toutes les actions (CREATE, UPDATE, DELETE) dans audit_log pour aujourd'hui
-    cursor.execute(
-        """
-        SELECT COUNT(*) FROM audit_log 
-        WHERE user_id = ? 
-        AND DATE(timestamp) = ?
-        AND action IN ('CREATE', 'UPDATE', 'DELETE')
-    """,
-        (user_id, today),
-    )
-
-    row = cursor.fetchone()
-    conn.close()
-
-    return row[0] if row else 0
-
-
-def check_daily_quota(user_id: int) -> bool:
-    """Return True if user has quota remaining, False if exceeded."""
-    usage = get_daily_usage(user_id)
-    return usage < DAILY_QUOTA_LIMIT
-
-
-def increment_daily_quota(user_id: int):
-    """Increment user's daily usage - no longer needed, calculated from audit_log."""
-    # Cette fonction ne fait plus rien, le quota est calculé automatiquement
-    # depuis audit_log par get_daily_usage()
-    pass
-
-
-def get_remaining_quota(user_id: int) -> int:
-    """Get remaining quota for user today."""
-    usage = get_daily_usage(user_id)
-    return max(0, DAILY_QUOTA_LIMIT - usage)
+# Per-action daily limits
+DAILY_CREATE_LIMIT = 10
+DAILY_UPDATE_LIMIT = 15
+DAILY_DELETE_LIMIT = 5
 
 
 def get_daily_usage_breakdown(user_id: int) -> dict:
-    """Get breakdown of daily actions by type (CREATE, UPDATE, DELETE)."""
+    """Get breakdown of today's actions by type (CREATE, UPDATE, DELETE)."""
     conn = get_db()
     cursor = conn.cursor()
 
@@ -72,3 +32,49 @@ def get_daily_usage_breakdown(user_id: int) -> dict:
 
     conn.close()
     return breakdown
+
+
+def get_daily_usage(user_id: int) -> int:
+    """Get total number of counted actions today (sum of breakdown)."""
+    breakdown = get_daily_usage_breakdown(user_id)
+    return breakdown["CREATE"] + breakdown["UPDATE"] + breakdown["DELETE"]
+
+
+def _get_action_limit(action: str) -> int:
+    action = action.upper()
+    if action == "CREATE":
+        return DAILY_CREATE_LIMIT
+    if action == "UPDATE":
+        return DAILY_UPDATE_LIMIT
+    if action == "DELETE":
+        return DAILY_DELETE_LIMIT
+    # Unknown actions are not limited
+    return 0
+
+
+def check_daily_quota(user_id: int, action: str) -> bool:
+    """Return True if user has quota remaining for the given action."""
+    action = action.upper()
+    limit = _get_action_limit(action)
+    if limit == 0:
+        return True
+
+    breakdown = get_daily_usage_breakdown(user_id)
+    return breakdown.get(action, 0) < limit
+
+
+def increment_daily_quota(user_id: int, action: str | None = None):
+    """No-op kept for backward compatibility (quota derived from audit_log)."""
+    # Quotas are computed from audit_log; nothing to increment here.
+    return None
+
+
+def get_remaining_quota(user_id: int, action: str) -> int:
+    """Get remaining quota for user today for the given action."""
+    action = action.upper()
+    limit = _get_action_limit(action)
+    if limit == 0:
+        return 0
+
+    breakdown = get_daily_usage_breakdown(user_id)
+    return max(0, limit - breakdown.get(action, 0))

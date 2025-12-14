@@ -16,9 +16,10 @@ from app.models import (
 )
 from app.services.quota import (
     check_daily_quota,
-    increment_daily_quota,
-    get_remaining_quota,
     get_daily_usage_breakdown,
+    DAILY_CREATE_LIMIT,
+    DAILY_UPDATE_LIMIT,
+    DAILY_DELETE_LIMIT,
 )
 from app.api.auth import get_current_user, require_login
 from app.services.ws_manager import manager
@@ -90,6 +91,10 @@ def _geometry_intersects_existing(
 
 LOCK_DURATION_MINUTES = 15
 
+# Grace windows after creation (free actions by creator)
+GRACE_UPDATE_MINUTES = 30  # free updates within 30 minutes after creation
+GRACE_DELETE_MINUTES = 15  # free delete within 15 minutes after creation
+
 
 def parse_utc(dt_str: str) -> datetime:
     """Parse ISO string and return timezone-aware UTC datetime."""
@@ -152,6 +157,85 @@ def serialize_map_object(row: dict, conn=None) -> MapObjectResponse:
     )
 
 
+def _audit_snapshot(geometry_json: str, severity: str, description: str | None) -> str:
+    """Build a JSON snapshot for audit comparisons."""
+    try:
+        geometry = json.loads(geometry_json)
+    except Exception:
+        geometry = geometry_json
+    return json.dumps(
+        {
+            "geometry": geometry,
+            "severity": severity,
+            "description": description,
+        }
+    )
+
+
+def _quota_message(user_id: int) -> str:
+    breakdown = get_daily_usage_breakdown(user_id)
+    return (
+        "Quota journalier atteint ("
+        f"créations: {breakdown['CREATE']}/{DAILY_CREATE_LIMIT}, "
+        f"modifications: {breakdown['UPDATE']}/{DAILY_UPDATE_LIMIT}, "
+        f"suppressions: {breakdown['DELETE']}/{DAILY_DELETE_LIMIT})"
+    )
+
+
+def _is_within_creation_grace(obj: dict, user_id: int, minutes: int) -> bool:
+    """Return True if creator acts within grace window after creation."""
+    if obj.get("created_by") != user_id:
+        return False
+    created_at = parse_utc(obj.get("created_at"))
+    if not created_at:
+        return False
+    return datetime.now(timezone.utc) - created_at <= timedelta(minutes=minutes)
+
+
+def _is_delete_undo_create(obj: dict, user: dict) -> bool:
+    """Return True if delete qualifies as an undo of a recent self-created object."""
+    # Deprecated stricter rule; kept for reference. Use grace helper instead.
+    return _is_within_creation_grace(obj, user["id"], GRACE_DELETE_MINUTES)
+
+
+def _is_update_rollback(
+    conn, object_id: int, user_id: int, target_snapshot: str
+) -> bool:
+    """Return True if the update reverts the user's last change within 30 minutes."""
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT action, user_id, before_data, after_data, timestamp
+        FROM audit_log
+        WHERE object_id = ? AND action = 'UPDATE'
+        ORDER BY timestamp DESC
+        LIMIT 1
+    """,
+        (object_id,),
+    )
+    row = cursor.fetchone()
+    if not row:
+        return False
+    if row[1] != user_id:
+        return False
+
+    ts = parse_utc(row[4])
+    if not ts or datetime.now(timezone.utc) - ts > timedelta(minutes=30):
+        return False
+
+    before_data = row[2]
+    if not before_data:
+        return False
+
+    try:
+        before_obj = json.loads(before_data)
+        target_obj = json.loads(target_snapshot)
+    except Exception:
+        return False
+
+    return before_obj == target_obj
+
+
 @router.get("", response_model=MapObjectsListResponse)
 async def list_map_objects(
     minLat: float = Query(...),
@@ -207,12 +291,10 @@ async def get_map_object(object_id: int):
 async def create_map_object(req: MapObjectCreate, user: dict = Depends(require_login)):
     """Create a new map object."""
     # Check quota
-    if not check_daily_quota(user["id"]):
-        breakdown = get_daily_usage_breakdown(user["id"])
-        detail = f"Quota journalier atteint (créations: {breakdown['CREATE']}, modifications: {breakdown['UPDATE']}, suppressions: {breakdown['DELETE']})"
+    if not check_daily_quota(user["id"], "CREATE"):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=detail,
+            detail=_quota_message(user["id"]),
         )
 
     # Validate geometry
@@ -259,9 +341,6 @@ async def create_map_object(req: MapObjectCreate, user: dict = Depends(require_l
     cursor.execute("SELECT * FROM map_objects WHERE id = ?", (object_id,))
     obj = dict_from_row(cursor.fetchone())
     conn.close()
-
-    # Increment quota
-    increment_daily_quota(user["id"])
 
     # Broadcast to all clients
     if sio:
@@ -424,16 +503,6 @@ async def update_map_object(
                 status_code=status.HTTP_409_CONFLICT, detail="Lock expired"
             )
 
-    # Check daily quota
-    if not check_daily_quota(user["id"]):
-        breakdown = get_daily_usage_breakdown(user["id"])
-        conn.close()
-        detail = f"Quota journalier atteint (créations: {breakdown['CREATE']}, modifications: {breakdown['UPDATE']}, suppressions: {breakdown['DELETE']})"
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=detail,
-        )
-
     # Update object
     new_geometry = req.geometry if req.geometry else obj["geometry"]
     new_severity = req.severity if req.severity else obj["severity"]
@@ -461,6 +530,24 @@ async def update_map_object(
 
     geometry_json = json.dumps(new_geometry) if req.geometry else obj["geometry"]
 
+    before_snapshot = _audit_snapshot(
+        obj["geometry"], obj["severity"], obj.get("description")
+    )
+    after_snapshot = _audit_snapshot(geometry_json, new_severity, new_description)
+
+    is_rollback = _is_update_rollback(conn, object_id, user["id"], after_snapshot)
+    is_update_grace = _is_within_creation_grace(obj, user["id"], GRACE_UPDATE_MINUTES)
+
+    # Check daily quota unless this is a rollback or grace update
+    if not (is_rollback or is_update_grace) and not check_daily_quota(
+        user["id"], "UPDATE"
+    ):
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=_quota_message(user["id"]),
+        )
+
     cursor.execute(
         """
         UPDATE map_objects
@@ -478,13 +565,17 @@ async def update_map_object(
         ),
     )
 
-    # Log audit
+    action_label = (
+        "UNDO_UPDATE"
+        if is_rollback
+        else ("GRACE_UPDATE" if is_update_grace else "UPDATE")
+    )
     cursor.execute(
         """
         INSERT INTO audit_log (object_id, action, user_id, before_data, after_data)
         VALUES (?, ?, ?, ?, ?)
     """,
-        (object_id, "UPDATE", user["id"], obj["geometry"], geometry_json),
+        (object_id, action_label, user["id"], before_snapshot, after_snapshot),
     )
 
     conn.commit()
@@ -493,9 +584,6 @@ async def update_map_object(
     cursor.execute("SELECT * FROM map_objects WHERE id = ?", (object_id,))
     updated_obj = dict_from_row(cursor.fetchone())
     conn.close()
-
-    # Increment quota
-    increment_daily_quota(user["id"])
 
     # Broadcast update event
     if sio:
@@ -526,14 +614,14 @@ async def delete_map_object(object_id: int, user: dict = Depends(require_login))
             status_code=status.HTTP_404_NOT_FOUND, detail="Object not found"
         )
 
-    # Check daily quota
-    if not check_daily_quota(user["id"]):
-        breakdown = get_daily_usage_breakdown(user["id"])
+    grace_delete = _is_within_creation_grace(obj, user["id"], GRACE_DELETE_MINUTES)
+
+    # Check daily quota unless this delete is within grace window
+    if not grace_delete and not check_daily_quota(user["id"], "DELETE"):
         conn.close()
-        detail = f"Quota journalier atteint (créations: {breakdown['CREATE']}, modifications: {breakdown['UPDATE']}, suppressions: {breakdown['DELETE']})"
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=detail,
+            detail=_quota_message(user["id"]),
         )
 
     # Soft delete
@@ -546,20 +634,22 @@ async def delete_map_object(object_id: int, user: dict = Depends(require_login))
         (datetime.now(timezone.utc).isoformat(), object_id),
     )
 
+    before_snapshot = _audit_snapshot(
+        obj["geometry"], obj["severity"], obj.get("description")
+    )
+
     # Log audit
+    action_label = "GRACE_DELETE" if grace_delete else "DELETE"
     cursor.execute(
         """
-        INSERT INTO audit_log (object_id, action, user_id)
-        VALUES (?, ?, ?)
+        INSERT INTO audit_log (object_id, action, user_id, before_data)
+        VALUES (?, ?, ?, ?)
     """,
-        (object_id, "DELETE", user["id"]),
+        (object_id, action_label, user["id"], before_snapshot),
     )
 
     conn.commit()
     conn.close()
-
-    # Increment quota
-    increment_daily_quota(user["id"])
 
     # Broadcast delete event
     if sio:

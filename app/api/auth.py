@@ -7,6 +7,12 @@ import bcrypt
 from app.database import get_db, dict_from_row
 import asyncio
 from app.models import LoginRequest, LoginResponse, AuthMeResponse, UserResponse
+from app.services.quota import (
+    get_daily_usage_breakdown,
+    DAILY_CREATE_LIMIT,
+    DAILY_UPDATE_LIMIT,
+    DAILY_DELETE_LIMIT,
+)
 
 router = APIRouter()
 
@@ -150,6 +156,20 @@ async def me(user: Optional[dict] = Depends(get_current_user)):
             id=user["id"], username=user["username"], created_at=user["created_at"]
         ),
     )
+
+
+@router.get("/quota")
+async def quota(user: dict = Depends(require_login)):
+    """Return per-action quota breakdown and limits for current user."""
+    breakdown = get_daily_usage_breakdown(user["id"])
+    return {
+        "success": True,
+        "data": {
+            "create": {"used": breakdown["CREATE"], "limit": DAILY_CREATE_LIMIT},
+            "update": {"used": breakdown["UPDATE"], "limit": DAILY_UPDATE_LIMIT},
+            "delete": {"used": breakdown["DELETE"], "limit": DAILY_DELETE_LIMIT},
+        },
+    }
 
 
 @router.post("/register")
