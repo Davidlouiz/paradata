@@ -482,6 +482,7 @@ const APP = (() => {
                     cancelEdit(true); // Ne pas ré-sélectionner
                 } else if (state.selectedObjectId !== null) {
                     AppState.deselectObject();
+                    restyleAllLayers();
                     UI.closeDrawer();
                 }
             }
