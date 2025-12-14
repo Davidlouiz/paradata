@@ -38,6 +38,21 @@ const UI = (() => {
         const infoDate = document.getElementById('info-date');
         if (infoDate && obj?.created_at) infoDate.textContent = new Date(obj.created_at).toLocaleString('fr-FR');
 
+        const infoUpdate = document.getElementById('info-update');
+        const infoUpdater = document.getElementById('info-updater');
+        const infoUpdateDate = document.getElementById('info-update-date');
+        const infoUpdateTime = document.getElementById('info-update-time');
+
+        if (obj?.updated_by && obj?.updated_at) {
+            if (infoUpdater) infoUpdater.textContent = obj.updated_by_username || 'Unknown';
+            if (infoUpdateTime) infoUpdateTime.textContent = new Date(obj.updated_at).toLocaleString('fr-FR');
+            if (infoUpdate) infoUpdate.style.display = 'block';
+            if (infoUpdateDate) infoUpdateDate.style.display = 'block';
+        } else {
+            if (infoUpdate) infoUpdate.style.display = 'none';
+            if (infoUpdateDate) infoUpdateDate.style.display = 'none';
+        }
+
         const lockInfo = document.getElementById('lock-info');
         if (lockInfo) {
             if (obj?.locked_by) {

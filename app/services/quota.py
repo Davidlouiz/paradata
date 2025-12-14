@@ -3,7 +3,7 @@ from app.database import get_db
 
 # Per-action daily limits
 DAILY_CREATE_LIMIT = 10
-DAILY_UPDATE_LIMIT = 15
+DAILY_UPDATE_LIMIT = 5
 DAILY_DELETE_LIMIT = 5
 
 
