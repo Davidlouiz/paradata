@@ -211,7 +211,6 @@ const UI = (() => {
                     body.innerHTML = `
                         <p>Vous disposez d’un nombre limité de créations, modifications et suppressions par jour.</p>
                         <p>Une fois la limite atteinte, l’opération correspondante est bloquée jusqu’au lendemain.</p>
-                        <p>Cas particulier : juste après avoir créé une zone, vous pouvez encore la modifier ou la supprimer sans que cela ne compte dans la limite.</p>
                     `;
                 }
             });

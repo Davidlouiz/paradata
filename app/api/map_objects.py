@@ -236,6 +236,38 @@ def _is_update_rollback(
     return before_obj == target_obj
 
 
+def _is_update_chain_by_sequence(conn, object_id: int, user_id: int) -> bool:
+    """
+    Retouche successive de la même zone par le même utilisateur:
+    Si la dernière action dans l'audit est une modification par ce même utilisateur,
+    alors la nouvelle modification est considérée comme une retouche et ne consomme pas de quota.
+    Pas de notion de temps ou de verrou.
+    """
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT user_id, action
+        FROM audit_log
+        WHERE object_id = ?
+        ORDER BY timestamp DESC
+        LIMIT 1
+        """,
+        (object_id,),
+    )
+    row = cursor.fetchone()
+    if not row:
+        return False
+    # sqlite returns tuples here
+    uid = row[0]
+    action = row[1]
+    return uid == user_id and action in (
+        "UPDATE",
+        "GRACE_UPDATE",
+        "UNDO_UPDATE",
+        "GRACE_UPDATE_CHAIN",
+    )
+
+
 @router.get("", response_model=MapObjectsListResponse)
 async def list_map_objects(
     minLat: float = Query(...),
@@ -537,9 +569,12 @@ async def update_map_object(
 
     is_rollback = _is_update_rollback(conn, object_id, user["id"], after_snapshot)
     is_update_grace = _is_within_creation_grace(obj, user["id"], GRACE_UPDATE_MINUTES)
+    is_chain_grace = _is_update_chain_by_sequence(
+        conn, object_id, user["id"]
+    )  # retouche successive
 
     # Check daily quota unless this is a rollback or grace update
-    if not (is_rollback or is_update_grace) and not check_daily_quota(
+    if not (is_rollback or is_update_grace or is_chain_grace) and not check_daily_quota(
         user["id"], "UPDATE"
     ):
         conn.close()
@@ -568,7 +603,11 @@ async def update_map_object(
     action_label = (
         "UNDO_UPDATE"
         if is_rollback
-        else ("GRACE_UPDATE" if is_update_grace else "UPDATE")
+        else (
+            "GRACE_UPDATE"
+            if is_update_grace
+            else ("GRACE_UPDATE_CHAIN" if is_chain_grace else "UPDATE")
+        )
     )
     cursor.execute(
         """
