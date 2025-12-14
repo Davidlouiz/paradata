@@ -208,7 +208,7 @@ const UI = (() => {
                 if (body) {
                     body.innerHTML = `
                         <p>Vous disposez d’un nombre limité de créations, modifications et suppressions par jour.</p>
-                        <p>Une fois la limite atteinte, l’opération correspondante est bloquée jusqu’au lendemain.</p>
+                        <p>Une fois la limite atteinte, l’opération concernée est bloquée jusqu’au lendemain.</p>
                     `;
                 }
             });
