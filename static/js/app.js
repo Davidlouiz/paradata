@@ -793,15 +793,9 @@ const APP = (() => {
             }
 
             UI.notify(`Erreur lors de l'enregistrement: ${errorMessage}`, 'error');
-            // Revenir à l'état par défaut (VIEW) pour éviter de rester bloqué
-            UI.updateDrawStatus('');
-            DRAW.stopDrawMode();
-            DRAW.clearDrawnLayers();
-            UI.hideSaveCancel();
-            UI.hideLockBadge();
-            AppState.setViewMode();
-            AppState.deselectObject();
-            UI.closeDrawer();
+            // Rester en mode courant pour permettre la correction et une nouvelle tentative
+            UI.updateDrawStatus('Corrigez la zone puis réessayez.');
+            UI.showSaveCancel();
         }
     }
 
