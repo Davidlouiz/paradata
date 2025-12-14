@@ -93,8 +93,8 @@ def _geometry_intersects_existing(
 LOCK_DURATION_MINUTES = 15
 
 # Grace windows after creation (free actions by creator)
-GRACE_UPDATE_MINUTES = 30  # free updates within 30 minutes after creation
-GRACE_DELETE_MINUTES = 15  # free delete within 15 minutes after creation
+GRACE_UPDATE_MINUTES = 120  # free updates within 120 minutes after creation
+GRACE_DELETE_MINUTES = 120  # free delete within 120 minutes after creation
 
 
 def parse_utc(dt_str: str) -> datetime:
