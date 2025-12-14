@@ -108,7 +108,7 @@ const UI = (() => {
         const display = document.getElementById('user-display');
         const btn = document.getElementById('auth-btn');
         const statusInd = document.getElementById('status-indicator');
-        const quotaEl = document.getElementById('user-quota');
+        const shellContainer = document.getElementById('toolbar-shell-container');
 
         if (user) {
             if (display) display.textContent = user.username;
@@ -117,21 +117,18 @@ const UI = (() => {
                 btn.style.display = 'inline-block';
                 btn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); APP.logout(); };
             }
+            if (shellContainer) shellContainer.style.display = 'flex';
             if (statusInd) {
                 statusInd.textContent = 'Contributeur';
                 statusInd.style.display = 'inline-block';
             }
 
-            // Fetch and display per-action quotas next to username
+            // Update toolbar quota panel
             try {
                 const q = await API.getMyQuota();
-                if (quotaEl && q) {
-                    const c = q.create, u = q.update, d = q.delete;
-                    quotaEl.textContent = ` (C ${c.used}/${c.limit} · M ${u.used}/${u.limit} · S ${d.used}/${d.limit})`;
-                    quotaEl.style.display = 'inline';
-                }
+                updateQuotaPanel(q);
             } catch (e) {
-                if (quotaEl) quotaEl.style.display = 'none';
+                updateQuotaPanel(null);
                 console.warn('Failed to load quota', e);
             }
         } else {
@@ -141,12 +138,45 @@ const UI = (() => {
                 btn.style.display = 'inline-block';
                 btn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); showLoginModal(); };
             }
+            if (shellContainer) shellContainer.style.display = 'none';
             if (statusInd) {
                 statusInd.textContent = 'Lecture seule';
                 statusInd.style.display = 'inline-block';
             }
-            if (quotaEl) quotaEl.style.display = 'none';
+            updateQuotaPanel(null);
         }
+    }
+
+    function updateQuotaPanel(quota) {
+        const panel = document.getElementById('toolbar-quota');
+        const valuesEl = document.getElementById('toolbar-quota-values');
+        if (!panel || !valuesEl) return;
+
+        if (!quota) {
+            panel.style.display = 'none';
+            valuesEl.textContent = '';
+            return;
+        }
+
+        const c = quota.create;
+        const u = quota.update;
+        const d = quota.delete;
+
+        valuesEl.innerHTML = `
+            <div class="quota-line">
+                <span class="quota-left"><span class="quota-icon">✏️</span><span>Création</span></span>
+                <span class="quota-count">${c.used}/${c.limit}</span>
+            </div>
+            <div class="quota-line">
+                <span class="quota-left"><span class="quota-icon">🛠️</span><span>Modification</span></span>
+                <span class="quota-count">${u.used}/${u.limit}</span>
+            </div>
+            <div class="quota-line">
+                <span class="quota-left"><span class="quota-icon">🗑️</span><span>Suppression</span></span>
+                <span class="quota-count">${d.used}/${d.limit}</span>
+            </div>
+        `;
+        panel.style.display = 'flex';
     }
 
     function notify(msg, type = 'info', duration = 3000) {
@@ -294,6 +324,7 @@ const UI = (() => {
         showDrawerEmpty,
         closeDrawer,
         updateUserDisplay,
+        updateQuotaPanel,
         notify,
         confirm,
         updateDrawStatus,

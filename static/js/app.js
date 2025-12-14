@@ -67,6 +67,21 @@ const APP = (() => {
         console.log('APP initialized');
     }
 
+    async function refreshQuotaPanel() {
+        const state = AppState.getState();
+        if (!state.isAuthenticated) {
+            UI.updateQuotaPanel(null);
+            return;
+        }
+        try {
+            const q = await API.getMyQuota();
+            UI.updateQuotaPanel(q);
+        } catch (e) {
+            UI.updateQuotaPanel(null);
+            console.warn('Failed to refresh quota panel', e);
+        }
+    }
+
     /**
      * Vérifier l'authentification actuelle
      */
@@ -74,8 +89,10 @@ const APP = (() => {
         try {
             const user = await API.getMe();
             AppState.setCurrentUser(user);
+            await refreshQuotaPanel();
         } catch (err) {
             AppState.setCurrentUser(null);
+            UI.updateQuotaPanel(null);
         }
     }
 
@@ -86,6 +103,7 @@ const APP = (() => {
         const user = await API.login(username, password);
         AppState.setCurrentUser(user);
         UI.notify('Connecté!', 'success');
+        await refreshQuotaPanel();
         const state = AppState.getState();
         if (state.mode !== 'VIEW') {
             await cancelEdit(true);
@@ -102,6 +120,7 @@ const APP = (() => {
         const user = await API.register(username, password);
         AppState.setCurrentUser(user);
         UI.notify('Compte créé! Vous êtes connecté.', 'success');
+        await refreshQuotaPanel();
         const state = AppState.getState();
         if (state.mode !== 'VIEW') {
             await cancelEdit(true);
@@ -127,6 +146,7 @@ const APP = (() => {
             await API.logout();
             AppState.setCurrentUser(null);
             UI.notify('Déconnecté!', 'success');
+            UI.updateQuotaPanel(null);
             AppState.deselectObject();
             restyleAllLayers();
         } catch (err) {
@@ -721,6 +741,7 @@ const APP = (() => {
                     severity,
                     description,
                 });
+                await refreshQuotaPanel();
                 UI.updateDrawStatus(''); // Vider avant affichage toast
                 UI.notify('Zone créée!', 'success');
                 console.log('Object created:', res.data);
@@ -732,6 +753,7 @@ const APP = (() => {
                     severity,
                     description,
                 });
+                await refreshQuotaPanel();
                 UI.updateDrawStatus(''); // Vider avant affichage toast
                 UI.notify('Zone mise à jour!', 'success');
                 console.log('Object updated:', res.data);
@@ -823,6 +845,7 @@ const APP = (() => {
             AppState.setViewMode();
             AppState.deselectObject();
             UI.closeDrawer();
+            await refreshQuotaPanel();
             await loadMapObjects();
         } catch (err) {
             UI.notify(`Erreur lors de la suppression: ${err.message}`, 'error');

@@ -32,18 +32,29 @@
             <span id="status-indicator" class="status-indicator" style="display: none;"></span>
         </div>
         <div class="top-bar-right">
-            <span id="user-display"></span><span id="user-quota"
-                style="margin-left: 6px; color: #666; display: none;"></span>
+            <span id="user-display"></span>
             <button id="auth-btn" class="btn btn-primary" style="display: none;"></button>
         </div>
     </div>
 
-    <!-- Toolbar (for authenticated users) -->
-    <div id="toolbar" class="toolbar" style="display: none;">
-        <button id="btn-create" class="btn btn-success" title="Créer une nouvelle zone">
-            ➕ Créer une nouvelle zone
-        </button>
-        <span id="toolbar-status" class="toolbar-status"></span>
+    <!-- Toolbar shells stacked -->
+    <div id="toolbar-shell-container" style="display: none;">
+        <div class="toolbar-shell">
+            <div id="toolbar-quota" class="quota-panel" style="display: none;">
+                <div class="quota-title">Quotas journaliers</div>
+                <div class="quota-values" id="toolbar-quota-values"></div>
+            </div>
+        </div>
+
+        <div class="toolbar-shell">
+            <!-- Toolbar (for authenticated users) -->
+            <div id="toolbar" class="toolbar" style="display: none;">
+                <button id="btn-create" class="btn btn-success" title="Créer une nouvelle zone">
+                    ➕ Créer une nouvelle zone
+                </button>
+                <span id="toolbar-status" class="toolbar-status"></span>
+            </div>
+        </div>
     </div>
 
     <!-- Right drawer (details/edit panel) -->
