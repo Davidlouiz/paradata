@@ -18,6 +18,7 @@ from app.services.quota import (
     check_daily_quota,
     increment_daily_quota,
     get_remaining_quota,
+    get_daily_usage_breakdown,
 )
 from app.api.auth import get_current_user, require_login
 from app.services.ws_manager import manager
@@ -207,9 +208,11 @@ async def create_map_object(req: MapObjectCreate, user: dict = Depends(require_l
     """Create a new map object."""
     # Check quota
     if not check_daily_quota(user["id"]):
+        breakdown = get_daily_usage_breakdown(user["id"])
+        detail = f"Quota journalier atteint (créations: {breakdown['CREATE']}, modifications: {breakdown['UPDATE']}, suppressions: {breakdown['DELETE']})"
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Daily quota exceeded. Remaining: {get_remaining_quota(user['id'])}",
+            detail=detail,
         )
 
     # Validate geometry
@@ -421,6 +424,16 @@ async def update_map_object(
                 status_code=status.HTTP_409_CONFLICT, detail="Lock expired"
             )
 
+    # Check daily quota
+    if not check_daily_quota(user["id"]):
+        breakdown = get_daily_usage_breakdown(user["id"])
+        conn.close()
+        detail = f"Quota journalier atteint (créations: {breakdown['CREATE']}, modifications: {breakdown['UPDATE']}, suppressions: {breakdown['DELETE']})"
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=detail,
+        )
+
     # Update object
     new_geometry = req.geometry if req.geometry else obj["geometry"]
     new_severity = req.severity if req.severity else obj["severity"]
@@ -511,6 +524,16 @@ async def delete_map_object(object_id: int, user: dict = Depends(require_login))
         conn.close()
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Object not found"
+        )
+
+    # Check daily quota
+    if not check_daily_quota(user["id"]):
+        breakdown = get_daily_usage_breakdown(user["id"])
+        conn.close()
+        detail = f"Quota journalier atteint (créations: {breakdown['CREATE']}, modifications: {breakdown['UPDATE']}, suppressions: {breakdown['DELETE']})"
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=detail,
         )
 
     # Soft delete

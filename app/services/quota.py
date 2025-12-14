@@ -1,7 +1,7 @@
 from datetime import date
 from app.database import get_db, dict_from_row
 
-DAILY_QUOTA_LIMIT = 5  # Max objects per user per day
+DAILY_QUOTA_LIMIT = 30  # Max objects per user per day
 
 
 def get_daily_usage(user_id: int) -> int:
@@ -45,3 +45,30 @@ def get_remaining_quota(user_id: int) -> int:
     """Get remaining quota for user today."""
     usage = get_daily_usage(user_id)
     return max(0, DAILY_QUOTA_LIMIT - usage)
+
+
+def get_daily_usage_breakdown(user_id: int) -> dict:
+    """Get breakdown of daily actions by type (CREATE, UPDATE, DELETE)."""
+    conn = get_db()
+    cursor = conn.cursor()
+
+    today = str(date.today())
+
+    cursor.execute(
+        """
+        SELECT action, COUNT(*) as count FROM audit_log 
+        WHERE user_id = ? 
+        AND DATE(timestamp) = ?
+        AND action IN ('CREATE', 'UPDATE', 'DELETE')
+        GROUP BY action
+    """,
+        (user_id, today),
+    )
+
+    breakdown = {"CREATE": 0, "UPDATE": 0, "DELETE": 0}
+    for row in cursor.fetchall():
+        action, count = row[0], row[1]
+        breakdown[action] = count
+
+    conn.close()
+    return breakdown
