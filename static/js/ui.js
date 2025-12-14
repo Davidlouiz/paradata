@@ -165,11 +165,13 @@ const UI = (() => {
     function updateQuotaPanel(quota) {
         const panel = document.getElementById('toolbar-quota');
         const valuesEl = document.getElementById('toolbar-quota-values');
+        const shell = panel?.closest('.toolbar-shell');
         if (!panel || !valuesEl) return;
 
         if (!quota) {
             panel.style.display = 'none';
             valuesEl.textContent = '';
+            if (shell) shell.style.display = 'none';
             return;
         }
 
@@ -183,7 +185,7 @@ const UI = (() => {
                 <span class="quota-count">${c.used}/${c.limit}</span>
             </div>
             <div class="quota-line">
-                <span class="quota-left"><span class="quota-icon">🛠️</span><span>Modification</span></span>
+                <span class="quota-left"><span class="quota-icon">🔄</span><span>Modification</span></span>
                 <span class="quota-count">${u.used}/${u.limit}</span>
             </div>
             <div class="quota-line">
@@ -192,6 +194,7 @@ const UI = (() => {
             </div>
         `;
         panel.style.display = 'flex';
+        if (shell) shell.style.display = 'flex';
     }
 
     function notify(msg, type = 'info', duration = 3000) {
