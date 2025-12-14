@@ -1,7 +1,7 @@
 from datetime import date
 from app.database import get_db, dict_from_row
 
-DAILY_QUOTA_LIMIT = 20  # Max objects per user per day
+DAILY_QUOTA_LIMIT = 5  # Max objects per user per day
 
 
 def get_daily_usage(user_id: int) -> int:
@@ -10,10 +10,14 @@ def get_daily_usage(user_id: int) -> int:
     cursor = conn.cursor()
 
     today = str(date.today())
+
+    # Compter toutes les actions (CREATE, UPDATE, DELETE) dans audit_log pour aujourd'hui
     cursor.execute(
         """
-        SELECT count FROM daily_quota 
-        WHERE user_id = ? AND date = ?
+        SELECT COUNT(*) FROM audit_log 
+        WHERE user_id = ? 
+        AND DATE(timestamp) = ?
+        AND action IN ('CREATE', 'UPDATE', 'DELETE')
     """,
         (user_id, today),
     )
@@ -31,46 +35,10 @@ def check_daily_quota(user_id: int) -> bool:
 
 
 def increment_daily_quota(user_id: int):
-    """Increment user's daily usage."""
-    conn = get_db()
-    cursor = conn.cursor()
-
-    today = str(date.today())
-
-    # Try to increment existing record, or insert if it doesn't exist
-    # Using UPSERT pattern: attempt update first, insert if nothing was updated
-    cursor.execute(
-        """
-        UPDATE daily_quota 
-        SET count = count + 1
-        WHERE user_id = ? AND date = ?
-    """,
-        (user_id, today),
-    )
-
-    # If no rows were updated, the record doesn't exist, so insert it
-    if cursor.rowcount == 0:
-        try:
-            cursor.execute(
-                """
-                INSERT INTO daily_quota (user_id, date, count)
-                VALUES (?, ?, 1)
-            """,
-                (user_id, today),
-            )
-        except Exception:
-            # If insert fails (race condition), try update again
-            cursor.execute(
-                """
-                UPDATE daily_quota 
-                SET count = count + 1
-                WHERE user_id = ? AND date = ?
-            """,
-                (user_id, today),
-            )
-
-    conn.commit()
-    conn.close()
+    """Increment user's daily usage - no longer needed, calculated from audit_log."""
+    # Cette fonction ne fait plus rien, le quota est calculé automatiquement
+    # depuis audit_log par get_daily_usage()
+    pass
 
 
 def get_remaining_quota(user_id: int) -> int:
