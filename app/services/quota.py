@@ -34,12 +34,6 @@ def get_daily_usage_breakdown(user_id: int) -> dict:
     return breakdown
 
 
-def get_daily_usage(user_id: int) -> int:
-    """Get total number of counted actions today (sum of breakdown)."""
-    breakdown = get_daily_usage_breakdown(user_id)
-    return breakdown["CREATE"] + breakdown["UPDATE"] + breakdown["DELETE"]
-
-
 def _get_action_limit(action: str) -> int:
     action = action.upper()
     if action == "CREATE":
@@ -61,12 +55,6 @@ def check_daily_quota(user_id: int, action: str) -> bool:
 
     breakdown = get_daily_usage_breakdown(user_id)
     return breakdown.get(action, 0) < limit
-
-
-def increment_daily_quota(user_id: int, action: str | None = None):
-    """No-op kept for backward compatibility (quota derived from audit_log)."""
-    # Quotas are computed from audit_log; nothing to increment here.
-    return None
 
 
 def get_remaining_quota(user_id: int, action: str) -> int:
