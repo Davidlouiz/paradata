@@ -6,9 +6,8 @@ const UI = (() => {
     /** Convert severity code to readable label */
     function getSeverityLabel(severity) {
         const labels = {
-            'LOW_RISK': 'Danger faible',
-            'RISK': 'Danger modéré',
-            'HIGH_RISK': 'Danger sérieux',
+            'NO_ALERT': 'Aucune alerte',
+            'ALERT_STANDARD': 'Alerte standard',
         };
         return labels[severity] || severity || '—';
     }

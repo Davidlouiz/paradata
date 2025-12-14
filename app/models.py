@@ -39,7 +39,7 @@ class MapObjectGeometry(BaseModel):
 
 class MapObjectCreate(BaseModel):
     geometry: dict  # GeoJSON geometry
-    severity: str  # SAFE, LOW_RISK, RISK, HIGH_RISK, CRITICAL
+    severity: str  # NO_ALERT, ALERT_STANDARD
     description: Optional[str] = None
 
 

@@ -64,22 +64,19 @@
         <div id="danger-help-modal" class="modal" style="display: none;">
             <div class="modal-content">
                 <button class="modal-close" aria-label="Fermer">&times;</button>
-                <h3>Comment qualifier le niveau de dangerosité ?</h3>
+                <h3>Comment déterminer le niveau d'alerte ?</h3>
                 <p>
-                    Cette carte classe chaque zone selon un niveau de danger afin de déterminer
+                    Cette carte classe chaque zone selon un niveau d'alerte afin de déterminer
                     qui sera notifié lorsqu'un parapentiste se pose dans la zone.
                 </p>
 
-                <h4>Niveaux de danger</h4>
+                <h4>Niveaux d'alerte</h4>
                 <ul>
                     <li>
-                        <strong>Danger faible</strong> : aucune notification.
+                        <strong>Aucune alerte</strong> : aucune notification.
                     </li>
                     <li>
-                        <strong>Danger modéré</strong> : responsables notifiés (si définis).
-                    </li>
-                    <li>
-                        <strong>Danger sérieux</strong> : communauté notifiée, responsables notifiés (si définis).
+                        <strong>Alerte standard</strong> : les responsables sont notifiés (si définis).
                     </li>
                 </ul>
             </div>
@@ -106,7 +103,7 @@
             <!-- Details mode -->
             <div id="drawer-details" class="drawer-section" style="display: none;">
                 <div class="info-row">
-                    <label>Dangerosité:</label>
+                    <label>Niveau d'alerte:</label>
                     <span id="info-severity"></span>
                 </div>
                 <div class="info-row">
@@ -138,14 +135,13 @@
             <form id="drawer-form" class="drawer-section" style="display: none;">
                 <div class="form-group">
                     <div class="form-label-row">
-                        <label for="form-severity">Dangerosité:</label>
-                        <a href="#" id="danger-help-link" class="danger-help-link">Comment la qualifier ?</a>
+                        <label for="form-severity">Niveau d'alerte:</label>
+                        <a href="#" id="danger-help-link" class="danger-help-link">Comment le déterminer ?</a>
                     </div>
                     <select id="form-severity" required>
                         <option value="">-- Sélectionner --</option>
-                        <option value="LOW_RISK">Danger faible</option>
-                        <option value="RISK">Danger modéré</option>
-                        <option value="HIGH_RISK">Danger sérieux</option>
+                        <option value="NO_ALERT">Aucune alerte</option>
+                        <option value="ALERT_STANDARD">Alerte standard</option>
                     </select>
                 </div>
 

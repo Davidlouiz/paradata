@@ -14,11 +14,8 @@ const DRAW = (() => {
     let isGeomanReady = false;
 
     function getColorBySeverity(severity) {
-        if (severity === 'CRITICAL') return '#d32f2f';
-        if (severity === 'HIGH_RISK') return '#d32f2f';
-        if (severity === 'RISK') return '#fbc02d';
-        if (severity === 'LOW_RISK') return '#7cb342';
-        if (severity === 'SAFE') return '#388e3c';
+        if (severity === 'ALERT_STANDARD') return '#d32f2f';
+        if (severity === 'NO_ALERT') return '#7cb342';
         return '#666';
     }
 
@@ -307,11 +304,8 @@ const DRAW = (() => {
 
         // Déterminer la couleur selon la sévérité
         let color = '#666'; // Gris foncé par défaut (pas de sévérité)
-        if (severity === 'CRITICAL') color = '#d32f2f';
-        else if (severity === 'HIGH_RISK') color = '#d32f2f';
-        else if (severity === 'RISK') color = '#fbc02d';
-        else if (severity === 'LOW_RISK') color = '#7cb342';
-        else if (severity === 'SAFE') color = '#388e3c';
+        if (severity === 'ALERT_STANDARD') color = '#d32f2f';
+        else if (severity === 'NO_ALERT') color = '#7cb342';
 
         // Stocker la couleur désirée ET appliquer le style
         currentDrawnLayer._desiredColor = color;

@@ -35,7 +35,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS map_objects (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             geometry TEXT NOT NULL,
-            severity TEXT NOT NULL CHECK(severity IN ('SAFE', 'LOW_RISK', 'RISK', 'HIGH_RISK', 'CRITICAL')),
+            severity TEXT NOT NULL CHECK(severity IN ('NO_ALERT', 'ALERT_STANDARD')),
             description TEXT,
             created_by INTEGER NOT NULL,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

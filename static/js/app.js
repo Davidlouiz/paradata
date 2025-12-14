@@ -177,11 +177,8 @@ const APP = (() => {
      * Obtenir la couleur d'une sévérité
      */
     function getColorBySeverity(severity) {
-        if (severity === 'CRITICAL') return '#d32f2f';
-        if (severity === 'HIGH_RISK') return '#d32f2f';
-        if (severity === 'RISK') return '#fbc02d';
-        if (severity === 'LOW_RISK') return '#7cb342';
-        if (severity === 'SAFE') return '#388e3c';
+        if (severity === 'ALERT_STANDARD') return '#d32f2f';
+        if (severity === 'NO_ALERT') return '#7cb342';
         return '#999'; // Par défaut
     }
 
