@@ -65,17 +65,6 @@ def init_db():
         )
     """)
 
-    # Daily quota table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS daily_quota (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL UNIQUE,
-            date DATE NOT NULL,
-            count INTEGER NOT NULL DEFAULT 0,
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        )
-    """)
-
     # Create indices for performance
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_map_objects_deleted ON map_objects(deleted_at)"
@@ -86,9 +75,9 @@ def init_db():
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_audit_log_object ON audit_log(object_id)"
     )
-    cursor.execute(
-        "CREATE INDEX IF NOT EXISTS idx_daily_quota_user_date ON daily_quota(user_id, date)"
-    )
+
+    # Clean up legacy daily_quota table (unused since quotas derive from audit_log)
+    cursor.execute("DROP TABLE IF EXISTS daily_quota")
 
     conn.commit()
     conn.close()
