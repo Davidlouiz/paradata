@@ -17,6 +17,7 @@ from app.models import (
 from app.services.quota import (
     check_daily_quota,
     get_daily_usage_breakdown,
+    get_remaining_quota,
     DAILY_CREATE_LIMIT,
     DAILY_UPDATE_LIMIT,
     DAILY_DELETE_LIMIT,
@@ -384,7 +385,11 @@ async def create_map_object(req: MapObjectCreate, user: dict = Depends(require_l
             skip_sid=None,
         )
 
-    return SingleMapObjectResponse(success=True, data=serialize_map_object(obj))
+    return SingleMapObjectResponse(
+        success=True,
+        data=serialize_map_object(obj),
+        remaining_quota=get_remaining_quota(user["id"], "CREATE"),
+    )
 
 
 @router.post("/{object_id}/checkout", response_model=CheckoutResponse)
@@ -634,7 +639,11 @@ async def update_map_object(
             skip_sid=None,
         )
 
-    return SingleMapObjectResponse(success=True, data=serialize_map_object(updated_obj))
+    return SingleMapObjectResponse(
+        success=True,
+        data=serialize_map_object(updated_obj),
+        remaining_quota=get_remaining_quota(user["id"], "UPDATE"),
+    )
 
 
 @router.delete("/{object_id}", response_model=CheckoutResponse)
@@ -702,7 +711,9 @@ async def delete_map_object(object_id: int, user: dict = Depends(require_login))
             skip_sid=None,
         )
 
-    return CheckoutResponse(success=True)
+    return CheckoutResponse(
+        success=True, remaining_quota=get_remaining_quota(user["id"], "DELETE")
+    )
 
 
 @router.get("/{object_id}/lock")

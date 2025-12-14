@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 from app.database import get_db
 
 # Per-action daily limits
@@ -17,7 +17,8 @@ def get_daily_usage_breakdown(user_id: int) -> dict:
     conn = get_db()
     cursor = conn.cursor()
 
-    today = str(date.today())
+    # Use UTC date to match timestamp storage
+    today = str(datetime.now(timezone.utc).date())
 
     cursor.execute(
         """
