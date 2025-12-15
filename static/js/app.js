@@ -419,9 +419,9 @@ const APP = (() => {
         if (state.mode === 'EDIT' && state.selectedObjectId && state.selectedObjectId !== obj.id) {
             // Annuler l'édition courante sans ré-sélection automatique
             cancelEdit(true).then(() => {
-                // Sélectionner la nouvelle zone et démarrer l'édition
+                // Sélectionner la nouvelle zone et démarrer l'édition directement
                 AppState.selectObject(obj);
-                UI.showDrawerDetails(obj);
+                // Pas besoin de showDrawerDetails, startEdit affiche le formulaire
                 startEdit();
             });
             return;
@@ -439,15 +439,16 @@ const APP = (() => {
             }
         }
 
-        // Afficher le panneau détails
-        UI.showDrawerDetails(obj);
-
+        // Afficher le panneau détails ou formulaire selon le mode
         // En mode simplifié: si authentifié et pas déjà en EDIT, entrer en édition
         const current = AppState.getState();
         if (current.isAuthenticated && current.mode !== 'EDIT') {
+            // Ne pas afficher les détails, passer directement en mode édition
             // Ne pas appliquer le style noir, startEdit va cacher la couche immédiatement
             startEdit();
         } else {
+            // Afficher les détails seulement si non authentifié ou déjà en EDIT
+            UI.showDrawerDetails(obj);
             // Appliquer le style du nouveau sélectionné seulement si on ne va pas en EDIT
             layer.setStyle(getPolygonStyle(obj));
         }
