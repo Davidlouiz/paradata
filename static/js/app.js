@@ -243,6 +243,10 @@ const APP = (() => {
             UI.updateQuotaPanel(null);
             AppState.deselectObject();
             restyleAllLayers();
+            // Fermer le modal des périmètres s'il est ouvert
+            if (isCoverageSheetOpen()) {
+                closeCoverageSheetWithCleanup();
+            }
         } catch (err) {
             UI.notify(`Erreur: ${err.message}`, 'error');
         }

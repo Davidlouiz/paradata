@@ -78,7 +78,7 @@ const UI = (() => {
 
                     if (total.length > 0) {
                         infoVolunteersTotalList.innerHTML = total.map(v =>
-                            `<li>${v.username}</li>`
+                            `<li style="margin-bottom: 4px;">− ${v.username}</li>`
                         ).join('');
                         infoVolunteersTotal.style.display = 'block';
                     } else {
@@ -87,7 +87,7 @@ const UI = (() => {
 
                     if (partial.length > 0) {
                         infoVolunteersPartialList.innerHTML = partial.map(v =>
-                            `<li>${v.username}</li>`
+                            `<li style="margin-bottom: 4px;">− ${v.username}</li>`
                         ).join('');
                         infoVolunteersPartial.style.display = 'block';
                     } else {
@@ -221,9 +221,15 @@ const UI = (() => {
         const drawerDetails = document.getElementById('drawer-details');
         const drawerForm = document.getElementById('drawer-form');
         const drawerEmpty = document.getElementById('drawer-empty');
+        const drawerMetadata = document.getElementById('drawer-metadata');
+        const hrVolunteers = document.getElementById('hr-volunteers');
+        const hrMetadata = document.getElementById('hr-metadata');
         if (drawerDetails) drawerDetails.style.display = 'none';
         if (drawerForm) drawerForm.style.display = 'block';
         if (drawerEmpty) drawerEmpty.style.display = 'none';
+        if (drawerMetadata) drawerMetadata.style.display = 'none';
+        if (hrVolunteers) hrVolunteers.style.display = 'none';
+        if (hrMetadata) hrMetadata.style.display = 'none';
 
         const title = document.getElementById('drawer-title');
         if (title) title.textContent = obj ? `Modifier #${obj.id}` : 'Nouvelle zone';

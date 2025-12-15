@@ -123,14 +123,18 @@
                     <p id="info-description"></p>
                 </div>
             </div>
-            <hr style="margin: 16px 0; border: none; border-top: 1px solid #ddd; width: 100%;">
+            <hr id="hr-volunteers" style="margin: 16px 0; border: none; border-top: 1px solid #ddd; width: 100%;">
             <div id="info-volunteers-total" class="info-row" style="display: none;">
                 <label>Volontaires veillant sur cette zone:</label>
-                <ul id="info-volunteers-total-list" style="margin: 0; padding-left: 20px;"></ul>
+                <ul id="info-volunteers-total-list" style="margin: 0; list-style-type: none;">
+                    <!-- Items will be injected with custom bullet -->
+                </ul>
             </div>
             <div id="info-volunteers-partial" class="info-row" style="display: none;">
                 <label>Volontaires veillant partiellement sur cette zone:</label>
-                <ul id="info-volunteers-partial-list" style="margin: 0; padding-left: 20px;"></ul>
+                <ul id="info-volunteers-partial-list" style="margin: 0; list-style-type: none;">
+                    <!-- Items will be injected with custom bullet -->
+                </ul>
             </div>
             <div id="info-volunteers-none" class="info-row" style="display: none;">
                 <span>⚠️ <span style="color: #666; font-style: italic;">Personne ne veille actuellement sur cette zone.
@@ -139,7 +143,7 @@
             <div id="lock-info" class="info-row lock-warning" style="display: none;">
                 <span id="lock-message"></span>
             </div>
-            <hr style="margin: 16px 0; border: none; border-top: 1px solid #ddd; width: 100%;">
+            <hr id="hr-metadata" style="margin: 16px 0; border: none; border-top: 1px solid #ddd; width: 100%;">
             <div id="drawer-metadata" style="font-size: 12px; color: #999;">
                 <div class="info-row">
                     <label>Créé par:</label>
