@@ -147,6 +147,12 @@ const UI = (() => {
         // Masquer le bouton Créer une nouvelle zone
         const btnCreate = document.getElementById('btn-create');
         if (btnCreate) btnCreate.style.display = 'none';
+        // Masquer le panneau des plafonds quand le sheet coverage est ouvert
+        const quotaShell = document.getElementById('toolbar-quota')?.closest('.toolbar-shell');
+        if (quotaShell) quotaShell.style.display = 'none';
+        // Marquer le conteneur en mode coverage pour forcer le masquage via CSS
+        const shellContainer = document.getElementById('toolbar-shell-container');
+        if (shellContainer) shellContainer.classList.add('coverage-mode');
     }
 
     function closeCoverageSheet() {
@@ -164,6 +170,12 @@ const UI = (() => {
         // Réafficher le bouton Créer une nouvelle zone
         const btnCreate = document.getElementById('btn-create');
         if (btnCreate) btnCreate.style.display = 'inline-block';
+        // Réafficher le panneau des plafonds
+        const quotaShell = document.getElementById('toolbar-quota')?.closest('.toolbar-shell');
+        if (quotaShell) quotaShell.style.display = 'flex';
+        // Retirer le marqueur coverage
+        const shellContainer = document.getElementById('toolbar-shell-container');
+        if (shellContainer) shellContainer.classList.remove('coverage-mode');
     }
 
     function renderCoverageList(items, onChange) {
