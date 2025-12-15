@@ -605,6 +605,9 @@ const APP = (() => {
                 if (state.mode === 'DRAW' || state.mode === 'EDIT') {
                     cancelEdit(true); // Ne pas ré-sélectionner
                 } else {
+                    // Désélectionner l'objet et fermer le drawer
+                    AppState.deselectObject();
+                    restyleAllLayers();
                     UI.closeDrawer();
                 }
             });

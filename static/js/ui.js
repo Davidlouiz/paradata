@@ -70,6 +70,7 @@ const UI = (() => {
         const infoVolunteersPartial = document.getElementById('info-volunteers-partial');
         const infoVolunteersPartialList = document.getElementById('info-volunteers-partial-list');
         const infoVolunteersNone = document.getElementById('info-volunteers-none');
+        const hrVolunteers = document.getElementById('hr-volunteers');
         if (obj?.id && infoVolunteersTotal && infoVolunteersTotalList && infoVolunteersPartial && infoVolunteersPartialList && infoVolunteersNone) {
             API.getVolunteersCovering(obj.id)
                 .then(res => {
@@ -100,12 +101,20 @@ const UI = (() => {
                     } else {
                         infoVolunteersNone.style.display = 'none';
                     }
+
+                    // Show hr-volunteers separator when at least one volunteers section is visible
+                    if (hrVolunteers) {
+                        hrVolunteers.style.display = 'block';
+                    }
                 })
                 .catch(err => {
                     console.warn('Failed to fetch volunteers:', err);
                     infoVolunteersTotal.style.display = 'none';
                     infoVolunteersPartial.style.display = 'none';
                     infoVolunteersNone.style.display = 'none';
+                    if (hrVolunteers) {
+                        hrVolunteers.style.display = 'none';
+                    }
                 });
         }
 
@@ -224,12 +233,18 @@ const UI = (() => {
         const drawerMetadata = document.getElementById('drawer-metadata');
         const hrVolunteers = document.getElementById('hr-volunteers');
         const hrMetadata = document.getElementById('hr-metadata');
+        const infoVolunteersTotal = document.getElementById('info-volunteers-total');
+        const infoVolunteersPartial = document.getElementById('info-volunteers-partial');
+        const infoVolunteersNone = document.getElementById('info-volunteers-none');
         if (drawerDetails) drawerDetails.style.display = 'none';
         if (drawerForm) drawerForm.style.display = 'block';
         if (drawerEmpty) drawerEmpty.style.display = 'none';
         if (drawerMetadata) drawerMetadata.style.display = 'none';
         if (hrVolunteers) hrVolunteers.style.display = 'none';
         if (hrMetadata) hrMetadata.style.display = 'none';
+        if (infoVolunteersTotal) infoVolunteersTotal.style.display = 'none';
+        if (infoVolunteersPartial) infoVolunteersPartial.style.display = 'none';
+        if (infoVolunteersNone) infoVolunteersNone.style.display = 'none';
 
         const title = document.getElementById('drawer-title');
         if (title) title.textContent = obj ? `Modifier #${obj.id}` : 'Nouvelle zone';
