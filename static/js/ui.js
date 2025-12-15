@@ -64,24 +64,48 @@ const UI = (() => {
             }
         }
 
-        // Fetch and display volunteers covering this zone
-        const infoVolunteers = document.getElementById('info-volunteers');
-        const infoVolunteersList = document.getElementById('info-volunteers-list');
-        if (obj?.id && infoVolunteers && infoVolunteersList) {
+        // Fetch and display volunteers covering this zone (separated by coverage type)
+        const infoVolunteersTotal = document.getElementById('info-volunteers-total');
+        const infoVolunteersTotalList = document.getElementById('info-volunteers-total-list');
+        const infoVolunteersPartial = document.getElementById('info-volunteers-partial');
+        const infoVolunteersPartialList = document.getElementById('info-volunteers-partial-list');
+        const infoVolunteersNone = document.getElementById('info-volunteers-none');
+        if (obj?.id && infoVolunteersTotal && infoVolunteersTotalList && infoVolunteersPartial && infoVolunteersPartialList && infoVolunteersNone) {
             API.getVolunteersCovering(obj.id)
                 .then(res => {
-                    if (res?.data && res.data.length > 0) {
-                        infoVolunteersList.innerHTML = res.data.map(v =>
-                            `<li>${v.username} (couverture ${v.coverage_type})</li>`
+                    const total = (res?.data || []).filter(v => v.coverage_type === 'totale');
+                    const partial = (res?.data || []).filter(v => v.coverage_type === 'partielle');
+
+                    if (total.length > 0) {
+                        infoVolunteersTotalList.innerHTML = total.map(v =>
+                            `<li>${v.username}</li>`
                         ).join('');
-                        infoVolunteers.style.display = 'block';
+                        infoVolunteersTotal.style.display = 'block';
                     } else {
-                        infoVolunteers.style.display = 'none';
+                        infoVolunteersTotal.style.display = 'none';
+                    }
+
+                    if (partial.length > 0) {
+                        infoVolunteersPartialList.innerHTML = partial.map(v =>
+                            `<li>${v.username}</li>`
+                        ).join('');
+                        infoVolunteersPartial.style.display = 'block';
+                    } else {
+                        infoVolunteersPartial.style.display = 'none';
+                    }
+
+                    // Show "no volunteers" message if neither total nor partial
+                    if (total.length === 0 && partial.length === 0) {
+                        infoVolunteersNone.style.display = 'block';
+                    } else {
+                        infoVolunteersNone.style.display = 'none';
                     }
                 })
                 .catch(err => {
                     console.warn('Failed to fetch volunteers:', err);
-                    infoVolunteers.style.display = 'none';
+                    infoVolunteersTotal.style.display = 'none';
+                    infoVolunteersPartial.style.display = 'none';
+                    infoVolunteersNone.style.display = 'none';
                 });
         }
 
