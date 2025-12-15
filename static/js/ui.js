@@ -64,6 +64,27 @@ const UI = (() => {
             }
         }
 
+        // Fetch and display volunteers covering this zone
+        const infoVolunteers = document.getElementById('info-volunteers');
+        const infoVolunteersList = document.getElementById('info-volunteers-list');
+        if (obj?.id && infoVolunteers && infoVolunteersList) {
+            API.getVolunteersCovering(obj.id)
+                .then(res => {
+                    if (res?.data && res.data.length > 0) {
+                        infoVolunteersList.innerHTML = res.data.map(v =>
+                            `<li>${v.username} (couverture ${v.coverage_type})</li>`
+                        ).join('');
+                        infoVolunteers.style.display = 'block';
+                    } else {
+                        infoVolunteers.style.display = 'none';
+                    }
+                })
+                .catch(err => {
+                    console.warn('Failed to fetch volunteers:', err);
+                    infoVolunteers.style.display = 'none';
+                });
+        }
+
         openDrawer();
     }
 

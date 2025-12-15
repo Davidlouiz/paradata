@@ -154,6 +154,10 @@ const API = {
         const res = await this.request('DELETE', `/volunteers/coverage/${id}`);
         return res;
     },
+    async getVolunteersCovering(objectId) {
+        const res = await this.request('GET', `/volunteers/covering/${objectId}`);
+        return res;
+    },
     async volunteersCovering(objectId) {
         const res = await this.request('GET', `/volunteers/covering/${objectId}`);
         return res;

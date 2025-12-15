@@ -148,8 +148,16 @@ async def volunteers_covering_object(object_id: int):
             if obj_geom.intersects(g):
                 inter = obj_geom.intersection(g)
                 if not inter.is_empty:
+                    # Determine if coverage is total or partial
+                    # Total: volunteer coverage contains the entire alert zone
+                    coverage_type = "totale" if g.contains(obj_geom) else "partielle"
                     results.append(
-                        {"coverage_id": vc_id, "user_id": user_id, "username": username}
+                        {
+                            "coverage_id": vc_id,
+                            "user_id": user_id,
+                            "username": username,
+                            "coverage_type": coverage_type,
+                        }
                     )
         except Exception:
             continue
