@@ -42,34 +42,54 @@ async def add_coverage(geometry: dict, user: dict = Depends(require_login)):
 
     # Prevent overlapping coverage perimeters for the same user
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT id, geometry FROM volunteer_coverage WHERE user_id = ?", (user["id"],)
-    )
-    existing = cur.fetchall()
-    for cov_id, geom_json in existing:
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, geometry FROM volunteer_coverage WHERE user_id = ?",
+            (user["id"],),
+        )
+        existing = cur.fetchall()
+        # Use a small epsilon to allow mere boundary contacts without blocking
+        EPSILON = 1e-9
+        # Normalize new geometry to handle minor self-intersections
         try:
-            existing_shape = shape(json.loads(geom_json))
-            if new_shape.intersects(existing_shape):
-                inter = new_shape.intersection(existing_shape)
-                # Allow touching boundaries only; reject meaningful overlap
-                if not inter.is_empty and inter.area > 1e-7:
-                    conn.close()
-                    raise HTTPException(
-                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        detail="Le nouveau périmètre chevauche un périmètre existant.",
-                    )
+            normalized_new = new_shape.buffer(0)
         except Exception:
-            # If an existing geometry is invalid, skip it rather than blocking
-            continue
-    cur.execute(
-        "INSERT INTO volunteer_coverage (user_id, geometry) VALUES (?, ?)",
-        (user["id"], json.dumps(geometry)),
-    )
-    conn.commit()
-    new_id = cur.lastrowid
-    conn.close()
-    return {"success": True, "data": {"id": new_id}}
+            normalized_new = new_shape
+        for cov_id, geom_json in existing:
+            try:
+                existing_geom = json.loads(geom_json)
+                existing_shape = shape(existing_geom)
+                try:
+                    normalized_existing = existing_shape.buffer(0)
+                except Exception:
+                    normalized_existing = existing_shape
+                if normalized_new.intersects(normalized_existing):
+                    inter = normalized_new.intersection(normalized_existing)
+                    # Block only meaningful overlaps (area greater than epsilon)
+                    if not inter.is_empty and getattr(inter, "area", 0.0) > EPSILON:
+                        raise HTTPException(
+                            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail="Le nouveau périmètre chevauche un périmètre existant.",
+                        )
+            except HTTPException as e:
+                # Re-raise validation errors with explicit detail
+                raise HTTPException(status_code=e.status_code, detail=e.detail)
+            except Exception:
+                # Skip invalid existing geometries rather than blocking
+                continue
+        cur.execute(
+            "INSERT INTO volunteer_coverage (user_id, geometry) VALUES (?, ?)",
+            (user["id"], json.dumps(geometry)),
+        )
+        conn.commit()
+        new_id = cur.lastrowid
+        return {"success": True, "data": {"id": new_id}}
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 @router.delete("/coverage/{coverage_id}")

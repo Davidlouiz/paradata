@@ -1343,7 +1343,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         console.warn('Failed to refresh coverage list/map:', err2);
                     }
                 } catch (err) {
-                    UI.notify('Échec de l\'ajout du périmètre', 'error');
+                    const detail = err?.data?.detail || err?.message || 'Erreur inconnue';
+                    const errorMsg = `Échec de l'ajout du périmètre: ${detail}`;
+                    UI.notify(errorMsg, 'error');
                     console.error(err);
                     // Remove the temp layer if the add failed
                     try {
