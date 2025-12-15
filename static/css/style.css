@@ -8,6 +8,17 @@
     z-index: 1000;
 }
 
+.coverage-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px;
+    border: 1px solid #e5e5e5;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    background: #fafafa;
+}
+
 .modal-content {
     background: #fff;
     border: 1px solid #e6edf7;
@@ -891,4 +902,60 @@ body {
     .top-bar h1 {
         font-size: 16px;
     }
+}
+
+/* ========== Coverage Sheet as Right Drawer ========== */
+
+#coverage-sheet {
+    position: fixed;
+    /* override modal */
+    top: 60px;
+    left: 0;
+    right: 0;
+    height: calc(100vh - 60px);
+    background: transparent;
+    /* no backdrop */
+    backdrop-filter: none;
+    /* ensure map is not blurred */
+    z-index: 99;
+    /* similar to drawer */
+    display: none;
+    /* managed by JS */
+    align-items: stretch;
+    /* full height content */
+    justify-content: flex-end;
+    /* push content to right */
+    pointer-events: none;
+    /* allow map clicks behind except on content */
+}
+
+#coverage-sheet .modal-content {
+    width: 350px;
+    height: 100%;
+    max-height: none;
+    border-radius: 0;
+    padding: 20px;
+    /* match drawer padding */
+    box-shadow: -2px 0 8px rgba(0, 0, 0, 0.15);
+    border-left: 1px solid #e0e0e0;
+    pointer-events: auto;
+    /* interactable */
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+}
+
+#coverage-sheet.open .modal-content {
+    transform: translateX(0);
+}
+
+#coverage-sheet .modal-header {
+    border-bottom: 1px solid #e0e0e0;
+}
+
+#coverage-sheet .modal-title {
+    font-size: 18px;
+}
+
+#coverage-sheet .modal-body {
+    overflow-y: auto;
 }

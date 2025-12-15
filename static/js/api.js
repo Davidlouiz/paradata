@@ -141,4 +141,21 @@ const API = {
         return res;
     },
 
+    // ========= Volunteers Endpoints =========
+    async listMyCoverage() {
+        const res = await this.request('GET', '/volunteers/coverage/me');
+        return res;
+    },
+    async addCoverage(geometry) {
+        const res = await this.request('POST', '/volunteers/coverage', geometry);
+        return res;
+    },
+    async deleteCoverage(id) {
+        const res = await this.request('DELETE', `/volunteers/coverage/${id}`);
+        return res;
+    },
+    async volunteersCovering(objectId) {
+        const res = await this.request('GET', `/volunteers/covering/${objectId}`);
+        return res;
+    },
 };

@@ -7,6 +7,11 @@ const APP = (() => {
     let mapLayers = {}; // id -> Leaflet layer
     let stateUnsubscribe = null;
     let pollingIntervalId = null;
+    let coverageLayerGroup = null; // feature group for volunteer coverage perimeters
+    function isCoverageSheetOpen() {
+        const sheet = document.getElementById('coverage-sheet');
+        return !!(sheet && sheet.style.display !== 'none' && sheet.classList.contains('open'));
+    }
 
     /**
      * Initialiser l'application
@@ -16,6 +21,7 @@ const APP = (() => {
 
         // Initialiser la carte
         map = L.map('map').setView([45.5, 6.0], 10); // Alpes françaises
+        window.map = map; // Expose pour la feuille "Mes périmètres"
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap',
             maxZoom: 19,
@@ -23,6 +29,10 @@ const APP = (() => {
 
         // Initialiser les modules
         DRAW.init(map);
+
+        // Groupe de couches pour afficher les périmètres de couverture du volontaire
+        coverageLayerGroup = L.featureGroup();
+        coverageLayerGroup.addTo(map);
 
         // Initialiser WebSocket pour la synchronisation temps réel
         try {
@@ -65,6 +75,27 @@ const APP = (() => {
         }, 1500);
 
         console.log('APP initialized');
+    }
+    function renderCoverageOnMap(items) {
+        if (!coverageLayerGroup) return;
+        coverageLayerGroup.clearLayers();
+        if (!items || !items.length) return;
+        try {
+            items.forEach((i) => {
+                if (!i.geometry) return;
+                const layer = L.geoJSON(i.geometry, {
+                    style: {
+                        color: '#1976d2',
+                        weight: 2,
+                        opacity: 0.9,
+                        fillOpacity: 0.08,
+                    },
+                });
+                layer.addTo(coverageLayerGroup);
+            });
+        } catch (err) {
+            console.warn('Error rendering coverage perimeters:', err);
+        }
     }
 
     async function refreshQuotaPanel() {
@@ -612,6 +643,10 @@ const APP = (() => {
     * FLUX 2 : Démarrer le mode CREATE (dessiner une nouvelle zone)
      */
     function startCreate() {
+        if (isCoverageSheetOpen()) {
+            UI.notify('Fermez "Mes périmètres" pour modifier les zones d\'alerte.', 'info');
+            return;
+        }
         const state = AppState.getState();
         if (!state.isAuthenticated) {
             UI.notify('Vous devez être connecté', 'error');
@@ -621,6 +656,15 @@ const APP = (() => {
         AppState.setDrawMode();
         DRAW.clearDrawnLayers();
         DRAW.startCreateMode();
+        UI.updateDrawStatus('Cliquez sur la carte pour dessiner une zone.');
+        UI.showDrawerForm(); // Affiche le formulaire vide
+        UI.showSaveCancel();
+    }
+
+    function selectPolygon(obj, layer) {
+        if (isCoverageSheetOpen()) {
+            return; // disable alert-zone selection while coverage drawer is open
+        }
         UI.updateDrawStatus('Cliquez sur la carte pour dessiner une zone.');
         UI.showDrawerForm(); // Affiche le formulaire vide
         UI.showSaveCancel();
@@ -965,10 +1009,91 @@ const APP = (() => {
         loadMapObjects,
         startPolling,
         stopPolling,
+        renderCoverageOnMap,
+        clearCoverageOnMap: () => { if (coverageLayerGroup) coverageLayerGroup.clearLayers(); },
     };
 })();
 
 // Initialiser au chargement du DOM
 document.addEventListener('DOMContentLoaded', () => {
     APP.init().catch(err => console.error('Initialization error:', err));
+    // Coverage sheet wiring
+    const btnCoverage = document.getElementById('btn-coverage');
+    const btnCoverageAdd = document.getElementById('coverage-add');
+    const btnCoverageClose = document.getElementById('coverage-close');
+    if (btnCoverage) {
+        btnCoverage.addEventListener('click', async () => {
+            UI.openCoverageSheet();
+            try {
+                const res = await API.listMyCoverage();
+                const items = (res && res.data) || [];
+                UI.renderCoverageList(items, (data) => APP.renderCoverageOnMap(data || []));
+                APP.renderCoverageOnMap(items);
+            } catch (err) {
+                UI.renderCoverageList([]);
+                APP.renderCoverageOnMap([]);
+                console.warn('Failed to load coverage perimeters:', err);
+            }
+        });
+    }
+    if (btnCoverageClose) {
+        btnCoverageClose.addEventListener('click', () => {
+            UI.closeCoverageSheet();
+            // Nettoyer les périmètres affichés
+            APP.clearCoverageOnMap();
+        });
+    }
+    if (btnCoverageAdd) {
+        btnCoverageAdd.addEventListener('click', async () => {
+            if (!window.map || !window.map.pm) {
+                UI.notify("Outil de dessin indisponible", 'error');
+                return;
+            }
+            // Indiquer à l'utilisateur qu'il peut dessiner
+            UI.updateDrawStatus('Dessinez un périmètre de couverture sur la carte.');
+            UI.notify('Cliquez pour dessiner un polygone, puis terminez.', 'info');
+            window.map.pm.enableDraw('Polygon', {
+                snappable: true,
+                allowSelfIntersection: false,
+            });
+            const onCreate = async (e) => {
+                try {
+                    const layer = e.layer;
+                    const geo = layer.toGeoJSON().geometry;
+                    await API.addCoverage(geo);
+                    UI.notify('Périmètre ajouté', 'success');
+                    // Retirer la couche temporaire dessinée (elle sera rechargée depuis l'API)
+                    try {
+                        if (layer && window.map && window.map.hasLayer(layer)) {
+                            window.map.removeLayer(layer);
+                        }
+                    } catch (_) { /* ignore cleanup errors */ }
+                    // Rafraîchir la liste et l'affichage carte
+                    try {
+                        const res = await API.listMyCoverage();
+                        const items = (res && res.data) || [];
+                        UI.renderCoverageList(items, (data) => APP.renderCoverageOnMap(data || []));
+                        APP.renderCoverageOnMap(items);
+                    } catch (err2) {
+                        console.warn('Failed to refresh coverage list/map:', err2);
+                    }
+                } catch (err) {
+                    UI.notify('Échec de l\'ajout du périmètre', 'error');
+                    console.error(err);
+                    // Remove the temp layer if the add failed
+                    try {
+                        if (e?.layer && window.map && window.map.hasLayer(e.layer)) {
+                            window.map.removeLayer(e.layer);
+                        }
+                    } catch (_) { /* ignore cleanup errors */ }
+                } finally {
+                    window.map.off('pm:create', onCreate);
+                    window.map.pm.disableDraw('Polygon');
+                    // Nettoyer le statut de dessin
+                    UI.updateDrawStatus('');
+                }
+            };
+            window.map.on('pm:create', onCreate);
+        });
+    }
 });

@@ -67,6 +67,67 @@ const UI = (() => {
         openDrawer();
     }
 
+    function openDrawer() {
+        const drawer = document.getElementById('drawer');
+        if (drawer && drawer.classList) drawer.classList.add('open');
+    }
+    // Coverage sheet (modal) controls
+    function openCoverageSheet() {
+        const sheet = document.getElementById('coverage-sheet');
+        if (sheet) {
+            sheet.style.display = 'flex';
+            if (sheet.classList) sheet.classList.add('open');
+        }
+    }
+
+    function closeCoverageSheet() {
+        const sheet = document.getElementById('coverage-sheet');
+        if (sheet) {
+            if (sheet.classList) sheet.classList.remove('open');
+            sheet.style.display = 'none';
+        }
+    }
+
+    function renderCoverageList(items, onChange) {
+        const ul = document.getElementById('coverage-list');
+        if (!ul) return;
+        if (!items || !items.length) {
+            ul.innerHTML = '<li style="color:#666;">Aucun périmètre défini</li>';
+            return;
+        }
+        ul.innerHTML = items.map(i => (
+            `<li style="display:flex; align-items:center; justify-content:space-between; padding:6px 8px; border:1px solid #e5e5e5; border-radius:6px; margin-bottom:6px; background:#fafafa;">
+                <span>Périmètre #${i.id}</span>
+                <span class="actions">
+                    <button class="btn btn-secondary" data-action="delete" data-id="${i.id}">Supprimer</button>
+                </span>
+            </li>`
+        )).join('');
+        ul.querySelectorAll('[data-action="delete"]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = Number(btn.dataset.id);
+                try {
+                    await API.deleteCoverage(id);
+                    const res = await API.listMyCoverage();
+                    const data = (res && res.data) || [];
+                    renderCoverageList(data, onChange);
+                    if (onChange) onChange(data);
+                } catch (err) {
+                    console.error('Delete coverage failed', err);
+                }
+            });
+        });
+    }
+
+    async function refreshCoverageList() {
+        try {
+            const res = await API.listMyCoverage();
+            renderCoverageList((res && res.data) || []);
+        } catch (e) {
+            renderCoverageList([]);
+        }
+    }
+
     function showDrawerForm(obj = null) {
         const drawerDetails = document.getElementById('drawer-details');
         const drawerForm = document.getElementById('drawer-form');
@@ -88,6 +149,16 @@ const UI = (() => {
         openDrawer();
     }
 
+    function updateCharCount() {
+        const textarea = document.getElementById('form-description');
+        const counter = document.getElementById('char-count');
+        if (!textarea || !counter) return;
+        const max = Number(textarea.getAttribute('maxlength')) || 1000;
+        const len = textarea.value ? textarea.value.length : 0;
+        const remaining = Math.max(0, max - len);
+        counter.textContent = `${len}/${max} (${remaining} restants)`;
+    }
+
     function showDrawerEmpty() {
         const drawerDetails = document.getElementById('drawer-details');
         const drawerForm = document.getElementById('drawer-form');
@@ -98,24 +169,10 @@ const UI = (() => {
         closeDrawer();
     }
 
-    function openDrawer() {
-        const drawer = document.getElementById('drawer');
-        if (drawer && drawer.classList) drawer.classList.add('open');
-    }
-
     function closeDrawer() {
         const drawer = document.getElementById('drawer');
         if (drawer && drawer.classList) drawer.classList.remove('open');
     }
-
-    function updateCharCount() {
-        const textarea = document.getElementById('form-description');
-        const counter = document.getElementById('char-count');
-        if (textarea && counter) {
-            counter.textContent = `${textarea.value.length}/500`;
-        }
-    }
-
     async function updateUserDisplay(user) {
         const display = document.getElementById('user-display');
         const btn = document.getElementById('auth-btn');
@@ -384,6 +441,11 @@ const UI = (() => {
         showDrawerDetails,
         showDrawerForm,
         showDrawerEmpty,
+        openDrawer,
+        openCoverageSheet,
+        closeCoverageSheet,
+        renderCoverageList,
+        refreshCoverageList,
         closeDrawer,
         updateUserDisplay,
         updateQuotaPanel,
@@ -399,6 +461,6 @@ const UI = (() => {
         showAuthMessage,
         updateCharCount,
         openDangerHelpModal,
-        closeDangerHelpModal,
+        closeDangerHelpModal
     };
 })();

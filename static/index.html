@@ -88,6 +88,9 @@
                 <button id="btn-create" class="btn btn-success" title="Créer une nouvelle zone">
                     ➕ Créer une nouvelle zone
                 </button>
+                <button id="btn-coverage" class="btn" title="Gérer mes périmètres">
+                    🛡️ Mes périmètres
+                </button>
                 <span id="toolbar-status" class="toolbar-status"></span>
             </div>
         </div>
@@ -168,6 +171,8 @@
             <div id="drawer-empty" class="drawer-section" style="text-align: center; color: #999;">
                 <p>Sélectionnez une zone sur la carte</p>
             </div>
+
+            <!-- Coverage drawer removed: coverage is now managed via modal sheet -->
         </div>
 
         <!-- Delete button at bottom of drawer -->
@@ -176,6 +181,23 @@
                 title="Supprimer cette zone">
                 🗑️ Supprimer cette zone
             </button>
+        </div>
+    </div>
+
+    <!-- Coverage Sheet Modal (top-level) -->
+    <div id="coverage-sheet" class="modal" style="display: none;">
+        <div class="modal-content">
+            <button class="btn-close" id="coverage-close" aria-label="Fermer">&times;</button>
+            <div class="modal-header">
+                <h3 class="modal-title">Mes périmètres de couverture</h3>
+            </div>
+            <div class="modal-body">
+                <div class="form-label-row" style="margin-bottom: 8px;">
+                    <button id="coverage-add" class="btn btn-primary" type="button">Ajouter un périmètre</button>
+                </div>
+                <ul id="coverage-list" class="coverage-list" style="list-style: none; padding: 0; margin: 0;"></ul>
+                <p class="hint" style="color:#666; margin-top: 8px;">Cliquez sur "Ajouter un périmètre" puis dessinez un polygone sur la carte.</p>
+            </div>
         </div>
     </div>
 
