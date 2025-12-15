@@ -108,15 +108,28 @@ const UI = (() => {
             return;
         }
         ul.innerHTML = items.map(i => (
-            `<li class="coverage-list-item" data-coverage-id="${i.id}" style="display:flex; align-items:center; justify-content:space-between; padding:6px 8px; border:1px solid #e5e5e5; border-radius:6px; margin-bottom:6px; background:#fafafa;">
+            `<li class="coverage-list-item" data-coverage-id="${i.id}" style="display:flex; align-items:center; justify-content:space-between; padding:6px 8px; border:1px solid #e5e5e5; border-radius:6px; margin-bottom:6px; background:#fafafa; cursor:pointer;">
                 <span>Périmètre #${i.id}</span>
                 <span class="actions">
                     <button class="btn btn-secondary" data-action="delete" data-id="${i.id}">Supprimer</button>
                 </span>
             </li>`
         )).join('');
+        // Ajouter l'événement click sur les éléments de la liste pour surbrillance sur la carte
+        ul.querySelectorAll('.coverage-list-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                // Ne pas déclencher si on clique sur le bouton Supprimer
+                if (e.target.closest('[data-action="delete"]')) return;
+                const id = Number(item.dataset.coverageId);
+                if (window.APP && window.APP.highlightCoverageOnMap) {
+                    window.APP.highlightCoverageOnMap(id);
+                }
+                highlightCoverageListItem(id);
+            });
+        });
         ul.querySelectorAll('[data-action="delete"]').forEach(btn => {
-            btn.addEventListener('click', async () => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation(); // Empêcher le click de remonter à l'élément parent
                 const id = Number(btn.dataset.id);
                 try {
                     await API.deleteCoverage(id);

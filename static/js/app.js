@@ -8,6 +8,7 @@ const APP = (() => {
     let stateUnsubscribe = null;
     let pollingIntervalId = null;
     let coverageLayerGroup = null; // feature group for volunteer coverage perimeters
+    let coverageLayers = {}; // coverage id -> Leaflet layer
     function isCoverageSheetOpen() {
         const sheet = document.getElementById('coverage-sheet');
         return !!(sheet && sheet.style.display !== 'none' && sheet.classList.contains('open'));
@@ -101,6 +102,7 @@ const APP = (() => {
     function renderCoverageOnMap(items) {
         if (!coverageLayerGroup) return;
         coverageLayerGroup.clearLayers();
+        coverageLayers = {};
         if (!items || !items.length) return;
         try {
             items.forEach((i) => {
@@ -115,13 +117,47 @@ const APP = (() => {
                     onEachFeature: (feature, layer) => {
                         layer.on('click', () => {
                             UI.highlightCoverageListItem(i.id);
+                            highlightCoverageOnMap(i.id);
                         });
                     },
                 });
                 layer.addTo(coverageLayerGroup);
+                coverageLayers[i.id] = layer;
             });
         } catch (err) {
             console.warn('Error rendering coverage perimeters:', err);
+        }
+    }
+
+    function highlightCoverageOnMap(coverageId) {
+        // Remettre le style normal pour tous les périmètres
+        Object.values(coverageLayers).forEach(layer => {
+            layer.setStyle({
+                color: '#1976d2',
+                weight: 2,
+                opacity: 0.9,
+                fillOpacity: 0.08,
+            });
+        });
+        // Mettre en surbrillance le périmètre sélectionné
+        if (coverageId && coverageLayers[coverageId]) {
+            coverageLayers[coverageId].setStyle({
+                color: '#1976d2',
+                weight: 3,
+                opacity: 1,
+                fillOpacity: 0.2,
+            });
+            // Retirer la surbrillance après 2 secondes
+            setTimeout(() => {
+                if (coverageLayers[coverageId]) {
+                    coverageLayers[coverageId].setStyle({
+                        color: '#1976d2',
+                        weight: 2,
+                        opacity: 0.9,
+                        fillOpacity: 0.08,
+                    });
+                }
+            }, 2000);
         }
     }
 
@@ -1136,11 +1172,15 @@ const APP = (() => {
         startPolling,
         stopPolling,
         renderCoverageOnMap,
+        highlightCoverageOnMap,
         clearCoverageOnMap: () => { if (coverageLayerGroup) coverageLayerGroup.clearLayers(); },
         cancelEdit,
         updateToolbarShellVisibility,
     };
 })();
+
+// Exposer APP globalement pour l'accès depuis UI
+window.APP = APP;
 
 // Initialiser au chargement du DOM
 document.addEventListener('DOMContentLoaded', () => {
