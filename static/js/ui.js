@@ -78,6 +78,12 @@ const UI = (() => {
             sheet.style.display = 'flex';
             if (sheet.classList) sheet.classList.add('open');
         }
+        // Désactiver le bouton Mes périmètres
+        const btnCoverage = document.getElementById('btn-coverage');
+        if (btnCoverage) btnCoverage.disabled = true;
+        // Masquer le bouton Créer une nouvelle zone
+        const btnCreate = document.getElementById('btn-create');
+        if (btnCreate) btnCreate.style.display = 'none';
     }
 
     function closeCoverageSheet() {
@@ -86,6 +92,12 @@ const UI = (() => {
             if (sheet.classList) sheet.classList.remove('open');
             sheet.style.display = 'none';
         }
+        // Réactiver le bouton Mes périmètres
+        const btnCoverage = document.getElementById('btn-coverage');
+        if (btnCoverage) btnCoverage.disabled = false;
+        // Réafficher le bouton Créer une nouvelle zone
+        const btnCreate = document.getElementById('btn-create');
+        if (btnCreate) btnCreate.style.display = 'inline-block';
     }
 
     function renderCoverageList(items, onChange) {
@@ -96,7 +108,7 @@ const UI = (() => {
             return;
         }
         ul.innerHTML = items.map(i => (
-            `<li style="display:flex; align-items:center; justify-content:space-between; padding:6px 8px; border:1px solid #e5e5e5; border-radius:6px; margin-bottom:6px; background:#fafafa;">
+            `<li class="coverage-list-item" data-coverage-id="${i.id}" style="display:flex; align-items:center; justify-content:space-between; padding:6px 8px; border:1px solid #e5e5e5; border-radius:6px; margin-bottom:6px; background:#fafafa;">
                 <span>Périmètre #${i.id}</span>
                 <span class="actions">
                     <button class="btn btn-secondary" data-action="delete" data-id="${i.id}">Supprimer</button>
@@ -117,6 +129,25 @@ const UI = (() => {
                 }
             });
         });
+    }
+
+    function highlightCoverageListItem(coverageId) {
+        // Retirer la surbrillance de tous les éléments
+        document.querySelectorAll('.coverage-list-item').forEach(li => {
+            li.classList.remove('highlighted');
+        });
+        // Ajouter la surbrillance à l'élément sélectionné
+        if (coverageId) {
+            const item = document.querySelector(`[data-coverage-id="${coverageId}"]`);
+            if (item) {
+                item.classList.add('highlighted');
+                item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                // Retirer la surbrillance après 2 secondes
+                setTimeout(() => {
+                    item.classList.remove('highlighted');
+                }, 2000);
+            }
+        }
     }
 
     async function refreshCoverageList() {
@@ -446,6 +477,7 @@ const UI = (() => {
         closeCoverageSheet,
         renderCoverageList,
         refreshCoverageList,
+        highlightCoverageListItem,
         closeDrawer,
         updateUserDisplay,
         updateQuotaPanel,

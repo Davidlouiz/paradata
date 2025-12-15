@@ -61,6 +61,11 @@ const APP = (() => {
         if (toolbar) {
             toolbar.style.display = initialState.isAuthenticated ? 'flex' : 'none';
         }
+        // Afficher le bouton coverage si authentifié
+        const btnCoverage = document.getElementById('btn-coverage');
+        if (btnCoverage) {
+            btnCoverage.style.display = initialState.isAuthenticated ? 'inline-block' : 'none';
+        }
         // S'assurer que le statut de toolbar est caché s'il est vide
         UI.updateDrawStatus('');
 
@@ -75,6 +80,9 @@ const APP = (() => {
         }, 1500);
 
         console.log('APP initialized');
+
+        // Masquer les toolbar-shell vides
+        updateToolbarShellVisibility();
     }
     function renderCoverageOnMap(items) {
         if (!coverageLayerGroup) return;
@@ -89,6 +97,11 @@ const APP = (() => {
                         weight: 2,
                         opacity: 0.9,
                         fillOpacity: 0.08,
+                    },
+                    onEachFeature: (feature, layer) => {
+                        layer.on('click', () => {
+                            UI.highlightCoverageListItem(i.id);
+                        });
                     },
                 });
                 layer.addTo(coverageLayerGroup);
@@ -331,9 +344,20 @@ const APP = (() => {
     }
 
     /**
+     * Fermer le tiroir de périmètres et nettoyer les polygones affichés
+     */
+    function closeCoverageSheetWithCleanup() {
+        UI.closeCoverageSheet();
+        APP.clearCoverageOnMap();
+    }
+
+    /**
     * Sélectionner une zone
      */
     function selectPolygon(obj, layer) {
+        if (isCoverageSheetOpen()) {
+            return; // Bloquer les clics quand le coverage sheet est ouvert
+        }
         const state = AppState.getState();
 
         // Ignorer les clics pendant le dessin d'une nouvelle zone
@@ -380,6 +404,26 @@ const APP = (() => {
     }
 
     /**
+     * Mettre à jour la visibilité des toolbar-shell vides
+     */
+    function updateToolbarShellVisibility() {
+        const shells = document.querySelectorAll('.toolbar-shell');
+        shells.forEach((shell) => {
+            // Vérifier si le shell a au moins un enfant visible
+            const hasVisibleChild = Array.from(shell.children).some((child) => {
+                const style = window.getComputedStyle(child);
+                return style.display !== 'none';
+            });
+
+            if (hasVisibleChild) {
+                shell.classList.remove('empty');
+            } else {
+                shell.classList.add('empty');
+            }
+        });
+    }
+
+    /**
      * Écouteur de changement d'état (s'abonne à AppState)
      */
     function setupStateListener() {
@@ -394,6 +438,12 @@ const APP = (() => {
             const toolbar = document.getElementById('toolbar');
             if (toolbar) {
                 toolbar.style.display = isAuth ? 'flex' : 'none';
+            }
+
+            // Gérer la visibilité du bouton Mes périmètres
+            const btnCoverage = document.getElementById('btn-coverage');
+            if (btnCoverage) {
+                btnCoverage.style.display = isAuth ? 'inline-block' : 'none';
             }
 
             // Mettre à jour le bouton Créer et le bouton Supprimer du formulaire
@@ -415,6 +465,9 @@ const APP = (() => {
 
             // Afficher le statut
             updateStatusIndicator(state);
+
+            // Mettre à jour la visibilité des toolbar-shell vides
+            updateToolbarShellVisibility();
         });
     }
 
@@ -505,6 +558,30 @@ const APP = (() => {
         // Échap pour annuler dessin/édition
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
+                // Si le coverage sheet est ouvert, le fermer
+                if (isCoverageSheetOpen()) {
+                    // Si un dessin de périmètre est en cours, l'arrêter d'abord
+                    if (window.map && window.map.pm && window.map.pm.globalDrawModeEnabled()) {
+                        window.map.pm.disableDraw();
+                    }
+                    UI.closeCoverageSheet();
+                    UI.updateDrawStatus('');
+                    // Enlever la classe coverage-mode pour restaurer la visibilité normale
+                    const toolbarShellContainer = document.getElementById('toolbar-shell-container');
+                    if (toolbarShellContainer) {
+                        toolbarShellContainer.classList.remove('coverage-mode');
+                    }
+                    // Restaurer le toolbar
+                    const toolbar = document.getElementById('toolbar');
+                    if (toolbar && AppState.getState().isAuthenticated) {
+                        toolbar.style.display = 'flex';
+                    }
+                    // Restaurer la visibilité des toolbar-shell
+                    APP.updateToolbarShellVisibility();
+                    APP.clearCoverageOnMap();
+                    return;
+                }
+
                 const state = AppState.getState();
                 if (state.mode === 'DRAW' || state.mode === 'EDIT') {
                     cancelEdit(true); // Ne pas ré-sélectionner
@@ -644,8 +721,7 @@ const APP = (() => {
      */
     function startCreate() {
         if (isCoverageSheetOpen()) {
-            UI.notify('Fermez "Mes périmètres" pour modifier les zones d\'alerte.', 'info');
-            return;
+            closeCoverageSheetWithCleanup(); // Fermer et nettoyer les périmètres
         }
         const state = AppState.getState();
         if (!state.isAuthenticated) {
@@ -656,15 +732,6 @@ const APP = (() => {
         AppState.setDrawMode();
         DRAW.clearDrawnLayers();
         DRAW.startCreateMode();
-        UI.updateDrawStatus('Cliquez sur la carte pour dessiner une zone.');
-        UI.showDrawerForm(); // Affiche le formulaire vide
-        UI.showSaveCancel();
-    }
-
-    function selectPolygon(obj, layer) {
-        if (isCoverageSheetOpen()) {
-            return; // disable alert-zone selection while coverage drawer is open
-        }
         UI.updateDrawStatus('Cliquez sur la carte pour dessiner une zone.');
         UI.showDrawerForm(); // Affiche le formulaire vide
         UI.showSaveCancel();
@@ -1011,6 +1078,8 @@ const APP = (() => {
         stopPolling,
         renderCoverageOnMap,
         clearCoverageOnMap: () => { if (coverageLayerGroup) coverageLayerGroup.clearLayers(); },
+        cancelEdit,
+        updateToolbarShellVisibility,
     };
 })();
 
@@ -1018,18 +1087,59 @@ const APP = (() => {
 document.addEventListener('DOMContentLoaded', () => {
     APP.init().catch(err => console.error('Initialization error:', err));
     // Coverage sheet wiring
+    console.log('DOMContentLoaded: Setting up coverage button handler');
     const btnCoverage = document.getElementById('btn-coverage');
+    console.log('btnCoverage element:', btnCoverage);
     const btnCoverageAdd = document.getElementById('coverage-add');
+    console.log('btnCoverageAdd element:', btnCoverageAdd);
     const btnCoverageClose = document.getElementById('coverage-close');
+    console.log('btnCoverageClose element:', btnCoverageClose);
     if (btnCoverage) {
         btnCoverage.addEventListener('click', async () => {
+            console.log('Coverage button clicked');
+            // Revenir en mode par défaut avant d'ouvrir Mes périmètres
+            const state = AppState.getState();
+            if (state.mode === 'DRAW' || state.mode === 'EDIT') {
+                await APP.cancelEdit(true);
+            } else {
+                AppState.setViewMode();
+                AppState.deselectObject();
+                UI.closeDrawer();
+                DRAW.stopDrawMode();
+                DRAW.clearDrawnLayers();
+                UI.hideSaveCancel();
+                UI.updateDrawStatus('');
+            }
+
+            console.log('Opening coverage sheet...');
             UI.openCoverageSheet();
+            // Masquer le toolbar et le quota panel pendant la gestion des périmètres
+            const toolbar = document.getElementById('toolbar');
+            if (toolbar) {
+                toolbar.style.display = 'none';
+            }
+            // Ajouter la classe coverage-mode au conteneur pour masquer le quota panel via CSS
+            const toolbarShellContainer = document.getElementById('toolbar-shell-container');
+            if (toolbarShellContainer) {
+                toolbarShellContainer.classList.add('coverage-mode');
+            }
+            // Masquer les toolbar-shell vides
+            APP.updateToolbarShellVisibility();
+            // Afficher le message d'instruction dans le modal
+            const coverageInstruction = document.getElementById('coverage-instruction');
+            if (coverageInstruction) {
+                coverageInstruction.textContent = 'Cliquez sur "Ajouter un périmètre" pour dessiner un périmètre sur la carte.';
+            }
             try {
+                console.log('Fetching coverage list...');
                 const res = await API.listMyCoverage();
+                console.log('Coverage list response:', res);
                 const items = (res && res.data) || [];
                 UI.renderCoverageList(items, (data) => APP.renderCoverageOnMap(data || []));
                 APP.renderCoverageOnMap(items);
+                console.log('Coverage list rendered');
             } catch (err) {
+                console.error('Error loading coverage:', err);
                 UI.renderCoverageList([]);
                 APP.renderCoverageOnMap([]);
                 console.warn('Failed to load coverage perimeters:', err);
@@ -1038,7 +1148,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (btnCoverageClose) {
         btnCoverageClose.addEventListener('click', () => {
+            // Si un dessin de périmètre est en cours, l'arrêter d'abord
+            if (window.map && window.map.pm && window.map.pm.globalDrawModeEnabled()) {
+                window.map.pm.disableDraw();
+            }
             UI.closeCoverageSheet();
+            UI.updateDrawStatus('');
+            // Enlever la classe coverage-mode pour restaurer la visibilité normale
+            const toolbarShellContainer = document.getElementById('toolbar-shell-container');
+            if (toolbarShellContainer) {
+                toolbarShellContainer.classList.remove('coverage-mode');
+            }
+            // Restaurer le toolbar
+            const toolbar = document.getElementById('toolbar');
+            if (toolbar && AppState.getState().isAuthenticated) {
+                toolbar.style.display = 'flex';
+            }
+            // Restaurer la visibilité des toolbar-shell
+            APP.updateToolbarShellVisibility();
             // Nettoyer les périmètres affichés
             APP.clearCoverageOnMap();
         });
@@ -1051,7 +1178,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             // Indiquer à l'utilisateur qu'il peut dessiner
             UI.updateDrawStatus('Dessinez un périmètre de couverture sur la carte.');
-            UI.notify('Cliquez pour dessiner un polygone, puis terminez.', 'info');
+            UI.notify('Cliquez pour dessiner un périmètre, puis terminez.', 'info');
             window.map.pm.enableDraw('Polygon', {
                 snappable: true,
                 allowSelfIntersection: false,
