@@ -1192,7 +1192,15 @@ document.addEventListener('DOMContentLoaded', () => {
             // Afficher le message d'instruction dans le modal
             const coverageInstruction = document.getElementById('coverage-instruction');
             if (coverageInstruction) {
-                coverageInstruction.textContent = 'Cliquez sur "Ajouter un périmètre" pour dessiner un périmètre sur la carte.';
+                coverageInstruction.innerHTML = `
+                    <span style="display: block; line-height: 1.5;">
+                    En définissant vos périmètres, vous acceptez d'être alerté lorsqu'un parapentiste 
+                    s'y pose et de vérifier, dans la mesure du possible, que tout va bien.
+                    </span>
+                    <span style="display: block; margin-top: 10px; font-size: 13px; color: #888;">
+                    Cliquez sur « Ajouter un périmètre » pour définir votre zone d'intervention.
+                    </span>
+                `;
             }
             try {
                 console.log('Fetching coverage list...');
