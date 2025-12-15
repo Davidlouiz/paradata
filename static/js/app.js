@@ -497,7 +497,7 @@ const APP = (() => {
             }
             const toolbarCoverage = document.getElementById('toolbar-coverage');
             if (toolbarCoverage) {
-                toolbarCoverage.style.display = isAuth ? 'flex' : 'none';
+                toolbarCoverage.style.display = isAuth && !coverageOpen ? 'flex' : 'none';
             }
 
             const quotaShell = document.getElementById('toolbar-quota')?.closest('.toolbar-shell');
