@@ -954,6 +954,29 @@ body {
         height: 100vh;
     }
 
+    /* Coverage sheet passe en bas en mode mobile */
+    #coverage-sheet {
+        top: auto;
+        bottom: 0;
+        height: 50vh;
+        align-items: flex-end;
+        justify-content: center;
+    }
+
+    #coverage-sheet .modal-content {
+        width: 100%;
+        height: 100%;
+        max-width: none;
+        border-left: none;
+        border-top: 1px solid #e0e0e0;
+        box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.15);
+        transform: translateY(100%);
+    }
+
+    #coverage-sheet.open .modal-content {
+        transform: translateY(0);
+    }
+
     .modal-content {
         width: 95%;
     }
@@ -1020,6 +1043,33 @@ body {
 
 #coverage-sheet.open .modal-content {
     transform: translateX(0);
+}
+
+/* Mobile: coverage sheet behaves like bottom drawer */
+@media (max-width: 768px) {
+    #coverage-sheet {
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 50vh;
+        align-items: flex-end;
+        justify-content: center;
+    }
+
+    #coverage-sheet .modal-content {
+        width: 100%;
+        height: 100%;
+        max-width: none;
+        border-left: none;
+        border-top: 1px solid #e0e0e0;
+        box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.15);
+        transform: translateY(100%);
+    }
+
+    #coverage-sheet.open .modal-content {
+        transform: translateY(0);
+    }
 }
 
 #coverage-sheet .drawer-header {
