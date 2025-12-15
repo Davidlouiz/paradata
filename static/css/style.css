@@ -936,6 +936,12 @@ body {
         padding: 8px;
     }
 
+    .toolbar-shell-coverage-floating {
+        position: static;
+        right: auto;
+        top: auto;
+    }
+
     .top-bar {
         flex-direction: column;
         height: auto;
