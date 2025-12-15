@@ -945,6 +945,7 @@ body {
 
     #map {
         margin-top: 0;
+        height: 100vh;
     }
 
     .modal-content {
