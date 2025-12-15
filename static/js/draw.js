@@ -12,6 +12,7 @@ const DRAW = (() => {
     let currentDrawnLayer = null; // polygone en cours de création
     let currentMode = null; // 'CREATE' | 'EDIT' | null
     let isGeomanReady = false;
+    let pendingCreateHoverListener = null;
 
     function getColorBySeverity(severity) {
         if (severity === 'ALERT_STANDARD') return '#d32f2f';
@@ -204,7 +205,8 @@ const DRAW = (() => {
         if (container && container.matches(':hover')) {
             enableDrawOnce();
         } else if (container) {
-            container.addEventListener('mouseenter', enableDrawOnce, { once: true });
+            pendingCreateHoverListener = enableDrawOnce;
+            container.addEventListener('mouseenter', pendingCreateHoverListener, { once: true });
         } else {
             enableDrawOnce();
         }
@@ -317,6 +319,13 @@ const DRAW = (() => {
      */
     function stopDrawMode() {
         if (!map || !map.pm) return;
+
+        // Retirer le listener différé d'activation du mode dessin, s'il existe
+        const container = map.getContainer && map.getContainer();
+        if (container && pendingCreateHoverListener) {
+            container.removeEventListener('mouseenter', pendingCreateHoverListener);
+            pendingCreateHoverListener = null;
+        }
 
         // Désactiver tous les outils de dessin
         map.pm.disableDraw();

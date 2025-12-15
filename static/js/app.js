@@ -1129,6 +1129,17 @@ const APP = (() => {
         // Quand on bascule d'une édition à une autre, enlever immédiatement la sélection
         AppState.deselectObject();
         UI.closeDrawer();
+        // Sécurité : désactiver tout mode de dessin Geoman en cours
+        if (window.map && window.map.pm && window.map.pm.globalDrawModeEnabled()) {
+            window.map.pm.disableDraw();
+        }
+        // Sécurité : désactiver les modes d'édition/suppression Geoman au cas où
+        if (window.map && window.map.pm && window.map.pm.globalEditModeEnabled()) {
+            window.map.pm.disableGlobalEditMode();
+        }
+        if (window.map && window.map.pm && window.map.pm.globalRemovalModeEnabled()) {
+            window.map.pm.disableGlobalRemovalMode();
+        }
         DRAW.stopDrawMode();
         DRAW.clearDrawnLayers();
         UI.hideSaveCancel();
