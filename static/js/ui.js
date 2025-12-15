@@ -71,6 +71,7 @@ const UI = (() => {
         const infoVolunteersPartialList = document.getElementById('info-volunteers-partial-list');
         const infoVolunteersNone = document.getElementById('info-volunteers-none');
         const hrVolunteers = document.getElementById('hr-volunteers');
+        const drawerFooter = document.querySelector('.drawer-footer');
         if (obj?.id && infoVolunteersTotal && infoVolunteersTotalList && infoVolunteersPartial && infoVolunteersPartialList && infoVolunteersNone) {
             API.getVolunteersCovering(obj.id)
                 .then(res => {
@@ -119,6 +120,8 @@ const UI = (() => {
         }
 
         openDrawer();
+
+        if (drawerFooter) drawerFooter.style.display = 'flex';
     }
 
     function openDrawer() {
@@ -236,6 +239,7 @@ const UI = (() => {
         const infoVolunteersTotal = document.getElementById('info-volunteers-total');
         const infoVolunteersPartial = document.getElementById('info-volunteers-partial');
         const infoVolunteersNone = document.getElementById('info-volunteers-none');
+        const drawerFooter = document.querySelector('.drawer-footer');
         if (drawerDetails) drawerDetails.style.display = 'none';
         if (drawerForm) drawerForm.style.display = 'block';
         if (drawerEmpty) drawerEmpty.style.display = 'none';
@@ -245,6 +249,7 @@ const UI = (() => {
         if (infoVolunteersTotal) infoVolunteersTotal.style.display = 'none';
         if (infoVolunteersPartial) infoVolunteersPartial.style.display = 'none';
         if (infoVolunteersNone) infoVolunteersNone.style.display = 'none';
+        if (drawerFooter) drawerFooter.style.display = obj ? 'flex' : 'none';
 
         const title = document.getElementById('drawer-title');
         if (title) title.textContent = obj ? `Modifier #${obj.id}` : 'Nouvelle zone';
