@@ -267,12 +267,10 @@ body {
 }
 
 .toolbar-shell-coverage-floating {
-    position: fixed;
-    top: 80px;
-    right: 30px;
+    position: static;
     align-items: stretch;
     min-width: 180px;
-    z-index: 120;
+    z-index: auto;
 }
 
 .toolbar-shell-coverage-floating.toolbar-shell-secondary {
