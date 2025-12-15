@@ -945,6 +945,22 @@ body {
         height: auto;
         padding: 10px;
         gap: 10px;
+        text-align: center;
+    }
+
+    .top-bar-left,
+    .top-bar-center,
+    .top-bar-right {
+        width: 100%;
+        text-align: center;
+    }
+
+    .top-bar h1,
+    .top-bar-subtitle {
+        width: 100%;
+        max-width: 100%;
+        text-align: center;
+        padding: 0 8px;
     }
 
     #map {
