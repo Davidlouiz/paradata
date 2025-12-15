@@ -259,8 +259,8 @@ const UI = (() => {
         const coverageSheet = document.getElementById('coverage-sheet');
         const coverageOpen = !!(coverageSheet && coverageSheet.style.display !== 'none' && coverageSheet.classList.contains('open'));
         if (coverageOpen) {
+            // Masquer uniquement, sans vider le contenu pour pouvoir le réafficher hors-ligne
             panel.style.display = 'none';
-            valuesEl.textContent = '';
             if (shell) shell.style.display = 'none';
             return;
         }

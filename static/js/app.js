@@ -618,8 +618,10 @@ const APP = (() => {
                     }
                     // Restaurer le bloc Plafonds si authentifié
                     const quotaShell = document.getElementById('toolbar-quota')?.closest('.toolbar-shell');
-                    if (quotaShell && AppState.getState().isAuthenticated) {
-                        quotaShell.style.display = 'flex';
+                    const quotaPanel = document.getElementById('toolbar-quota');
+                    if (AppState.getState().isAuthenticated) {
+                        if (quotaShell) quotaShell.style.display = 'flex';
+                        if (quotaPanel) quotaPanel.style.display = 'flex';
                     }
                     // Recharger les quotas pour réafficher le panneau
                     try {
@@ -630,7 +632,7 @@ const APP = (() => {
                             UI.updateQuotaPanel(null);
                         }
                     } catch (e) {
-                        UI.updateQuotaPanel(null);
+                        // Ne pas masquer les plafonds si l'appel échoue : garder l'affichage existant
                         console.warn('Failed to reload quota after ESC closing coverage', e);
                     }
                     // Restaurer la visibilité des toolbar-shell
@@ -1235,8 +1237,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             // Restaurer le bloc Plafonds si authentifié
             const quotaShell = document.getElementById('toolbar-quota')?.closest('.toolbar-shell');
-            if (quotaShell && AppState.getState().isAuthenticated) {
-                quotaShell.style.display = 'flex';
+            const quotaPanel = document.getElementById('toolbar-quota');
+            if (AppState.getState().isAuthenticated) {
+                if (quotaShell) quotaShell.style.display = 'flex';
+                if (quotaPanel) quotaPanel.style.display = 'flex';
             }
             // Recharger les quotas pour réafficher le panneau
             try {
@@ -1247,7 +1251,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     UI.updateQuotaPanel(null);
                 }
             } catch (e) {
-                UI.updateQuotaPanel(null);
+                // Ne pas masquer les plafonds si l'appel échoue : garder l'affichage existant
                 console.warn('Failed to reload quota after closing coverage', e);
             }
             // Restaurer la visibilité des toolbar-shell
