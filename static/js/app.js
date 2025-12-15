@@ -55,16 +55,30 @@ const APP = (() => {
         setupStateListener();
         setupEventHandlers();
 
-        // Appliquer l'état initial immédiatement (afficher toolbar si authentifié)
+        // Appliquer l'état initial immédiatement (afficher toolbar couverture si authentifié)
         const initialState = AppState.getState();
-        const toolbar = document.getElementById('toolbar');
-        if (toolbar) {
-            toolbar.style.display = initialState.isAuthenticated ? 'flex' : 'none';
+        const initialCoverageOpen = isCoverageSheetOpen();
+        const toolbarCoverage = document.getElementById('toolbar-coverage');
+        if (toolbarCoverage) {
+            toolbarCoverage.style.display = initialState.isAuthenticated ? 'flex' : 'none';
+        }
+        const quotaShell = document.getElementById('toolbar-quota')?.closest('.toolbar-shell');
+        if (quotaShell) {
+            quotaShell.style.display = initialState.isAuthenticated && !initialCoverageOpen ? 'flex' : 'none';
+        }
+        const toolbarCreate = document.getElementById('toolbar-create');
+        if (toolbarCreate) {
+            toolbarCreate.style.display = initialState.isAuthenticated && !initialCoverageOpen ? 'flex' : 'none';
         }
         // Afficher le bouton coverage si authentifié
         const btnCoverage = document.getElementById('btn-coverage');
         if (btnCoverage) {
             btnCoverage.style.display = initialState.isAuthenticated ? 'inline-block' : 'none';
+        }
+        const btnCreate = document.getElementById('btn-create');
+        if (btnCreate) {
+            btnCreate.style.display = initialState.isAuthenticated && !initialCoverageOpen ? 'inline-block' : 'none';
+            btnCreate.disabled = initialState.mode === 'DRAW' || initialState.mode === 'EDIT';
         }
         // S'assurer que le statut de toolbar est caché s'il est vide
         UI.updateDrawStatus('');
@@ -435,9 +449,24 @@ const APP = (() => {
 
             // Mettre à jour la visibilité des contrôles
             const isAuth = state.isAuthenticated;
-            const toolbar = document.getElementById('toolbar');
-            if (toolbar) {
-                toolbar.style.display = isAuth ? 'flex' : 'none';
+            const coverageOpen = isCoverageSheetOpen();
+            const shellContainer = document.getElementById('toolbar-shell-container');
+            if (shellContainer) {
+                shellContainer.style.display = isAuth ? 'flex' : 'none';
+            }
+            const toolbarCoverage = document.getElementById('toolbar-coverage');
+            if (toolbarCoverage) {
+                toolbarCoverage.style.display = isAuth ? 'flex' : 'none';
+            }
+
+            const quotaShell = document.getElementById('toolbar-quota')?.closest('.toolbar-shell');
+            if (quotaShell) {
+                quotaShell.style.display = isAuth && !coverageOpen ? 'flex' : 'none';
+            }
+
+            const toolbarCreate = document.getElementById('toolbar-create');
+            if (toolbarCreate) {
+                toolbarCreate.style.display = isAuth && !coverageOpen ? 'flex' : 'none';
             }
 
             // Gérer la visibilité du bouton Mes périmètres
@@ -446,8 +475,12 @@ const APP = (() => {
                 btnCoverage.style.display = isAuth ? 'inline-block' : 'none';
             }
 
-            // Mettre à jour le bouton Créer et le bouton Supprimer du formulaire
             const btnCreate = document.getElementById('btn-create');
+            if (btnCreate) {
+                btnCreate.style.display = isAuth && !coverageOpen ? 'inline-block' : 'none';
+            }
+
+            // Mettre à jour le bouton Créer et le bouton Supprimer du formulaire
             if (btnCreate) {
                 // Désactiver Créer lorsqu'on est en mode DRAW ou EDIT
                 btnCreate.disabled = state.mode === 'DRAW' || state.mode === 'EDIT';
@@ -556,7 +589,7 @@ const APP = (() => {
         });
 
         // Échap pour annuler dessin/édition
-        document.addEventListener('keydown', (e) => {
+        document.addEventListener('keydown', async (e) => {
             if (e.key === 'Escape') {
                 // Si le coverage sheet est ouvert, le fermer
                 if (isCoverageSheetOpen()) {
@@ -566,15 +599,39 @@ const APP = (() => {
                     }
                     UI.closeCoverageSheet();
                     UI.updateDrawStatus('');
-                    // Enlever la classe coverage-mode pour restaurer la visibilité normale
-                    const toolbarShellContainer = document.getElementById('toolbar-shell-container');
-                    if (toolbarShellContainer) {
-                        toolbarShellContainer.classList.remove('coverage-mode');
+                    // Restaurer la toolbar coverage
+                    const toolbarCoverage = document.getElementById('toolbar-coverage');
+                    if (toolbarCoverage && AppState.getState().isAuthenticated) {
+                        toolbarCoverage.style.display = 'flex';
                     }
-                    // Restaurer le toolbar
-                    const toolbar = document.getElementById('toolbar');
-                    if (toolbar && AppState.getState().isAuthenticated) {
-                        toolbar.style.display = 'flex';
+                    // Restaurer le bloc Créer si authentifié
+                    const toolbarCreateShell = document.getElementById('toolbar-create')?.closest('.toolbar-shell');
+                    const toolbarCreate = document.getElementById('toolbar-create');
+                    const btnCreate = document.getElementById('btn-create');
+                    if (AppState.getState().isAuthenticated) {
+                        if (toolbarCreateShell) toolbarCreateShell.style.display = 'flex';
+                        if (toolbarCreate) toolbarCreate.style.display = 'flex';
+                        if (btnCreate) {
+                            btnCreate.style.display = 'inline-block';
+                            btnCreate.disabled = false;
+                        }
+                    }
+                    // Restaurer le bloc Plafonds si authentifié
+                    const quotaShell = document.getElementById('toolbar-quota')?.closest('.toolbar-shell');
+                    if (quotaShell && AppState.getState().isAuthenticated) {
+                        quotaShell.style.display = 'flex';
+                    }
+                    // Recharger les quotas pour réafficher le panneau
+                    try {
+                        if (AppState.getState().isAuthenticated) {
+                            const q = await API.getMyQuota();
+                            UI.updateQuotaPanel(q);
+                        } else {
+                            UI.updateQuotaPanel(null);
+                        }
+                    } catch (e) {
+                        UI.updateQuotaPanel(null);
+                        console.warn('Failed to reload quota after ESC closing coverage', e);
                     }
                     // Restaurer la visibilité des toolbar-shell
                     APP.updateToolbarShellVisibility();
@@ -1113,15 +1170,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
             console.log('Opening coverage sheet...');
             UI.openCoverageSheet();
-            // Masquer le toolbar et le quota panel pendant la gestion des périmètres
-            const toolbar = document.getElementById('toolbar');
-            if (toolbar) {
-                toolbar.style.display = 'none';
+            // Masquer la toolbar couverture pendant la gestion des périmètres
+            const toolbarCoverage = document.getElementById('toolbar-coverage');
+            if (toolbarCoverage) {
+                toolbarCoverage.style.display = 'none';
             }
-            // Ajouter la classe coverage-mode au conteneur pour masquer le quota panel via CSS
-            const toolbarShellContainer = document.getElementById('toolbar-shell-container');
-            if (toolbarShellContainer) {
-                toolbarShellContainer.classList.add('coverage-mode');
+            // Masquer le bloc Créer pendant la gestion des périmètres
+            const toolbarCreateShell = document.getElementById('toolbar-create')?.closest('.toolbar-shell');
+            if (toolbarCreateShell) {
+                toolbarCreateShell.style.display = 'none';
+            }
+            // Masquer le bloc Plafonds pendant la gestion des périmètres
+            const quotaShell = document.getElementById('toolbar-quota')?.closest('.toolbar-shell');
+            if (quotaShell) {
+                quotaShell.style.display = 'none';
             }
             // Masquer les toolbar-shell vides
             APP.updateToolbarShellVisibility();
@@ -1147,22 +1209,46 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     if (btnCoverageClose) {
-        btnCoverageClose.addEventListener('click', () => {
+        btnCoverageClose.addEventListener('click', async () => {
             // Si un dessin de périmètre est en cours, l'arrêter d'abord
             if (window.map && window.map.pm && window.map.pm.globalDrawModeEnabled()) {
                 window.map.pm.disableDraw();
             }
             UI.closeCoverageSheet();
             UI.updateDrawStatus('');
-            // Enlever la classe coverage-mode pour restaurer la visibilité normale
-            const toolbarShellContainer = document.getElementById('toolbar-shell-container');
-            if (toolbarShellContainer) {
-                toolbarShellContainer.classList.remove('coverage-mode');
+            // Restaurer la toolbar couverture
+            const toolbarCoverage = document.getElementById('toolbar-coverage');
+            if (toolbarCoverage && AppState.getState().isAuthenticated) {
+                toolbarCoverage.style.display = 'flex';
             }
-            // Restaurer le toolbar
-            const toolbar = document.getElementById('toolbar');
-            if (toolbar && AppState.getState().isAuthenticated) {
-                toolbar.style.display = 'flex';
+            // Restaurer le bloc Créer si authentifié
+            const toolbarCreateShell = document.getElementById('toolbar-create')?.closest('.toolbar-shell');
+            const toolbarCreate = document.getElementById('toolbar-create');
+            const btnCreate = document.getElementById('btn-create');
+            if (AppState.getState().isAuthenticated) {
+                if (toolbarCreateShell) toolbarCreateShell.style.display = 'flex';
+                if (toolbarCreate) toolbarCreate.style.display = 'flex';
+                if (btnCreate) {
+                    btnCreate.style.display = 'inline-block';
+                    btnCreate.disabled = false;
+                }
+            }
+            // Restaurer le bloc Plafonds si authentifié
+            const quotaShell = document.getElementById('toolbar-quota')?.closest('.toolbar-shell');
+            if (quotaShell && AppState.getState().isAuthenticated) {
+                quotaShell.style.display = 'flex';
+            }
+            // Recharger les quotas pour réafficher le panneau
+            try {
+                if (AppState.getState().isAuthenticated) {
+                    const q = await API.getMyQuota();
+                    UI.updateQuotaPanel(q);
+                } else {
+                    UI.updateQuotaPanel(null);
+                }
+            } catch (e) {
+                UI.updateQuotaPanel(null);
+                console.warn('Failed to reload quota after closing coverage', e);
             }
             // Restaurer la visibilité des toolbar-shell
             APP.updateToolbarShellVisibility();

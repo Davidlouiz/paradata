@@ -253,11 +253,29 @@ body {
     pointer-events: none;
 }
 
+.toolbar-shell-coverage-floating {
+    position: fixed;
+    top: 80px;
+    right: 30px;
+    align-items: stretch;
+    min-width: 180px;
+    z-index: 10000;
+}
+
+.toolbar-shell-coverage-floating.toolbar-shell-secondary {
+    top: 80px;
+}
+
 .toolbar {
     display: flex;
     gap: 10px;
     align-items: center;
     flex-wrap: nowrap;
+}
+
+.toolbar-vertical {
+    flex-direction: column;
+    align-items: stretch;
 }
 
 .toolbar-separator {

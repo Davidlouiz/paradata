@@ -256,6 +256,15 @@ const UI = (() => {
         const modalClose = document.getElementById('quota-modal-close');
         if (!panel || !valuesEl) return;
 
+        const coverageSheet = document.getElementById('coverage-sheet');
+        const coverageOpen = !!(coverageSheet && coverageSheet.style.display !== 'none' && coverageSheet.classList.contains('open'));
+        if (coverageOpen) {
+            panel.style.display = 'none';
+            valuesEl.textContent = '';
+            if (shell) shell.style.display = 'none';
+            return;
+        }
+
         if (!quota) {
             panel.style.display = 'none';
             valuesEl.textContent = '';

@@ -84,7 +84,7 @@
 
         <div class="toolbar-shell">
             <!-- Toolbar (for authenticated users) -->
-            <div id="toolbar" class="toolbar" style="display: none;">
+            <div id="toolbar-create" class="toolbar" style="display: none;">
                 <button id="btn-create" class="btn btn-success" title="Créer une nouvelle zone">
                     ➕ Créer une nouvelle zone
                 </button>
@@ -92,11 +92,16 @@
             </div>
         </div>
 
-        <!-- Floating coverage button (top-right) -->
-        <button id="btn-coverage" class="btn btn-primary btn-coverage-floating" title="Gérer mes périmètres"
-            style="display: none;">
-            🛡️ Mes périmètres
-        </button>
+        <div class="toolbar-shell toolbar-shell-coverage-floating toolbar-shell-secondary">
+            <!-- Toolbar (for authenticated users) -->
+            <div id="toolbar-coverage" class="toolbar toolbar-vertical" style="display: none;">
+                <button id="btn-coverage" class="btn btn-primary" title="Gérer mes périmètres" style="display: none;">
+                    🛡️ Mes périmètres
+                </button>
+            </div>
+        </div>
+
+
     </div>
 
     <!-- Right drawer (details/edit panel) -->
