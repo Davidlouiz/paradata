@@ -133,7 +133,13 @@ const UI = (() => {
         const sheet = document.getElementById('coverage-sheet');
         if (sheet) {
             sheet.style.display = 'flex';
-            if (sheet.classList) sheet.classList.add('open');
+            if (sheet.classList) {
+                sheet.classList.remove('open');
+                // Defer adding the class to allow CSS transition from initial transform
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => sheet.classList.add('open'));
+                });
+            }
         }
         // Désactiver le bouton Mes périmètres d'intervention
         const btnCoverage = document.getElementById('btn-coverage');
@@ -147,7 +153,10 @@ const UI = (() => {
         const sheet = document.getElementById('coverage-sheet');
         if (sheet) {
             if (sheet.classList) sheet.classList.remove('open');
-            sheet.style.display = 'none';
+            // Wait for transition to finish before hiding to keep closing animation
+            setTimeout(() => {
+                sheet.style.display = 'none';
+            }, 320);
         }
         // Réactiver le bouton Mes périmètres d'intervention
         const btnCoverage = document.getElementById('btn-coverage');
