@@ -78,7 +78,7 @@ const UI = (() => {
             sheet.style.display = 'flex';
             if (sheet.classList) sheet.classList.add('open');
         }
-        // Désactiver le bouton Mes périmètres
+        // Désactiver le bouton Mes périmètres d'intervention
         const btnCoverage = document.getElementById('btn-coverage');
         if (btnCoverage) btnCoverage.disabled = true;
         // Masquer le bouton Créer une nouvelle zone
@@ -92,7 +92,7 @@ const UI = (() => {
             if (sheet.classList) sheet.classList.remove('open');
             sheet.style.display = 'none';
         }
-        // Réactiver le bouton Mes périmètres
+        // Réactiver le bouton Mes périmètres d'intervention
         const btnCoverage = document.getElementById('btn-coverage');
         if (btnCoverage) btnCoverage.disabled = false;
         // Réafficher le bouton Créer une nouvelle zone

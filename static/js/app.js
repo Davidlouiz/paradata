@@ -469,7 +469,7 @@ const APP = (() => {
                 toolbarCreate.style.display = isAuth && !coverageOpen ? 'flex' : 'none';
             }
 
-            // Gérer la visibilité du bouton Mes périmètres
+            // Gérer la visibilité du bouton Mes périmètres d'intervention
             const btnCoverage = document.getElementById('btn-coverage');
             if (btnCoverage) {
                 btnCoverage.style.display = isAuth ? 'inline-block' : 'none';
@@ -1156,7 +1156,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnCoverage) {
         btnCoverage.addEventListener('click', async () => {
             console.log('Coverage button clicked');
-            // Revenir en mode par défaut avant d'ouvrir Mes périmètres
+            // Revenir en mode par défaut avant d'ouvrir Mes périmètres d'intervention
             const state = AppState.getState();
             if (state.mode === 'DRAW' || state.mode === 'EDIT') {
                 await APP.cancelEdit(true);
