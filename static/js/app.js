@@ -28,6 +28,13 @@ const APP = (() => {
             maxZoom: 19,
         }).addTo(map);
 
+        // Add map scale (metric only, bottom-right)
+        try {
+            L.control.scale({ position: 'bottomright', metric: true, imperial: false }).addTo(map);
+        } catch (e) {
+            console.warn('Failed to add scale control:', e);
+        }
+
         // Initialiser les modules
         DRAW.init(map);
 

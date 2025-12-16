@@ -53,11 +53,7 @@ async def log_errors_middleware(request, call_next):
 # WebSocket/Socket.IO setup
 sio = AsyncServer(
     async_mode="asgi",
-    cors_allowed_origins=[
-        "*",
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
-    ],  # Allow local origins
+    cors_allowed_origins="*",  # Accept all origins in dev (string "*" not list)
     ping_timeout=60,
     ping_interval=25,
     logger=True,
