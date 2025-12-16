@@ -158,6 +158,35 @@ body {
     margin-top: 60px;
     position: absolute;
     top: 0;
+
+    /* Top-centered counter overlay */
+
+    .map-counter {
+        position: absolute;
+        top: 18px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #f0f0f0;
+        color: #333;
+        padding: 6px 12px;
+        border-radius: 6px;
+        border: 1px solid #bdbdbd;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        font-size: 12px;
+        line-height: 14px;
+        z-index: 4000;
+        /* Above Leaflet panes; below sheets/modals */
+        pointer-events: none;
+    }
+
+    @media (max-width: 768px) {
+        .map-counter {
+            top: 14px;
+            font-size: 13px;
+            padding: 5px 10px;
+        }
+    }
+
     left: 0;
     z-index: 1;
 }

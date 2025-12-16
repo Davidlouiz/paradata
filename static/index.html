@@ -21,7 +21,10 @@
 
 <body>
     <!-- Map container (full screen) -->
-    <div id="map"></div>
+    <div id="map">
+        <!-- Top-centered counter overlay (rendered over the map) -->
+        <div id="map-counter" class="map-counter" style="display: none;"></div>
+    </div>
 
     <!-- Top bar -->
     <div class="top-bar">
@@ -66,7 +69,7 @@
             <!-- Toolbar (for authenticated users) -->
             <div id="toolbar-create" class="toolbar" style="display: none;">
                 <button id="btn-create" class="btn btn-success" title="Créer une nouvelle zone">
-                    ➕ Créer une zone d'alerte
+                    ➕ Ajouter une zone d'alerte
                 </button>
                 <span id="toolbar-status" class="toolbar-status"></span>
             </div>

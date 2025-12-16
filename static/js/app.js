@@ -334,6 +334,8 @@ const APP = (() => {
                     renderMapObject(obj);
                 }
             });
+            // Mettre à jour le compteur avec le nombre total visible (hors supprimés)
+            updateMapCounter(objects.length);
             return; // Arrêter ici, ne pas recharger l'objet en édition
         }
 
@@ -349,6 +351,9 @@ const APP = (() => {
                 renderMapObject(obj);
             }
         });
+
+        // Mettre à jour le compteur avec le nombre total visible
+        updateMapCounter(objects.length);
     }
 
     /**
@@ -370,6 +375,25 @@ const APP = (() => {
             mapLayers[obj.id] = layer;
         } catch (err) {
             console.error('Error rendering polygon:', err, obj);
+        }
+    }
+
+    /**
+     * Mettre à jour le compteur en haut de la carte
+     */
+    function updateMapCounter(count) {
+        try {
+            const el = document.getElementById('map-counter');
+            if (!el) return;
+            const n = typeof count === 'number' ? count : Object.keys(mapLayers).length;
+            if (n > 0) {
+                el.textContent = `${n} zone${n > 1 ? 's' : ''} d'alerte répertoriée${n > 1 ? 's' : ''}.`;
+                el.style.display = 'block';
+            } else {
+                el.style.display = 'none';
+            }
+        } catch (e) {
+            console.warn('Failed updating map counter:', e);
         }
     }
 
