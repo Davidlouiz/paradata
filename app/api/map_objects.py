@@ -109,21 +109,22 @@ def parse_utc(dt_str: str) -> datetime:
     return dt
 
 
-def _ensure_zone_type(conn, code: str):
-    """Validate that the zone type code exists."""
+def _get_zone_type_id(conn, code: str) -> int:
+    """Resolve zone type code to ID, raise 422 if not found."""
     if not code:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Le type de zone est requis",
         )
     cursor = conn.cursor()
-    cursor.execute("SELECT code FROM zone_types WHERE code = ?", (code,))
+    cursor.execute("SELECT id FROM zone_types WHERE code = ?", (code,))
     row = cursor.fetchone()
     if not row:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Type de zone inconnu: {code}",
         )
+    return row[0]
 
 
 def serialize_map_object(row: dict, conn=None) -> MapObjectResponse:
@@ -154,10 +155,19 @@ def serialize_map_object(row: dict, conn=None) -> MapObjectResponse:
         locked_by_username = locker[0] if locker else None
         lock_expires_at = row["lock_expires_at"]
 
+    # Resolve zone_type_id to code for API compatibility
+    severity_code = None
+    if row.get("zone_type_id"):
+        cursor.execute(
+            "SELECT code FROM zone_types WHERE id = ?", (row["zone_type_id"],)
+        )
+        zt = cursor.fetchone()
+        severity_code = zt[0] if zt else None
+
     return MapObjectResponse(
         id=row["id"],
         geometry=json.loads(row["geometry"]),
-        severity=row["severity"],
+        severity=severity_code,
         description=row["description"],
         created_by=row["created_by"],
         created_by_username=created_by_username,
@@ -355,7 +365,7 @@ async def create_map_object(req: MapObjectCreate, user: dict = Depends(require_l
         )
 
     conn = get_db()
-    _ensure_zone_type(conn, req.severity)
+    zone_type_id = _get_zone_type_id(conn, req.severity)
 
     # Prevent overlapping zones
     if _geometry_intersects_existing(conn, req.geometry):
@@ -370,10 +380,10 @@ async def create_map_object(req: MapObjectCreate, user: dict = Depends(require_l
     geometry_json = json.dumps(req.geometry)
     cursor.execute(
         """
-        INSERT INTO map_objects (geometry, severity, description, created_by)
+        INSERT INTO map_objects (geometry, zone_type_id, description, created_by)
         VALUES (?, ?, ?, ?)
     """,
-        (geometry_json, req.severity, req.description, user["id"]),
+        (geometry_json, zone_type_id, req.description, user["id"]),
     )
 
     object_id = cursor.lastrowid
@@ -561,12 +571,16 @@ async def update_map_object(
 
     # Update object
     new_geometry = req.geometry if req.geometry else obj["geometry"]
-    new_severity = req.severity if req.severity else obj["severity"]
+
+    # Resolve severity code to zone_type_id
+    if req.severity:
+        new_zone_type_id = _get_zone_type_id(conn, req.severity)
+    else:
+        new_zone_type_id = obj["zone_type_id"]
+
     new_description = (
         req.description if req.description is not None else obj["description"]
     )
-
-    _ensure_zone_type(conn, new_severity)
 
     if req.geometry:
         if not req.geometry or req.geometry.get("type") not in [
@@ -588,10 +602,16 @@ async def update_map_object(
 
     geometry_json = json.dumps(new_geometry) if req.geometry else obj["geometry"]
 
+    # Get severity codes for audit (resolve IDs back to codes)
+    cursor.execute("SELECT code FROM zone_types WHERE id = ?", (obj["zone_type_id"],))
+    old_severity_code = cursor.fetchone()[0] if cursor.fetchone() else None
+    cursor.execute("SELECT code FROM zone_types WHERE id = ?", (new_zone_type_id,))
+    new_severity_code = cursor.fetchone()[0] if cursor.fetchone() else None
+
     before_snapshot = _audit_snapshot(
-        obj["geometry"], obj["severity"], obj.get("description")
+        obj["geometry"], old_severity_code, obj.get("description")
     )
-    after_snapshot = _audit_snapshot(geometry_json, new_severity, new_description)
+    after_snapshot = _audit_snapshot(geometry_json, new_severity_code, new_description)
 
     is_rollback = _is_update_rollback(conn, object_id, user["id"], after_snapshot)
     is_update_grace = _is_within_creation_grace(obj, user["id"], GRACE_UPDATE_MINUTES)
@@ -612,13 +632,13 @@ async def update_map_object(
     cursor.execute(
         """
         UPDATE map_objects
-        SET geometry = ?, severity = ?, description = ?,
+        SET geometry = ?, zone_type_id = ?, description = ?,
             updated_by = ?, updated_at = ?, locked_by = NULL, lock_expires_at = NULL
         WHERE id = ?
     """,
         (
             geometry_json,
-            new_severity,
+            new_zone_type_id,
             new_description,
             user["id"],
             datetime.now(timezone.utc).isoformat(),

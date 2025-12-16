@@ -58,7 +58,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS map_objects (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             geometry TEXT NOT NULL,
-            severity TEXT NOT NULL REFERENCES zone_types(code),
+            zone_type_id INTEGER NOT NULL,
             description TEXT,
             created_by INTEGER NOT NULL,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -67,6 +67,7 @@ def init_db():
             deleted_at TIMESTAMP,
             locked_by INTEGER,
             lock_expires_at TIMESTAMP,
+            FOREIGN KEY (zone_type_id) REFERENCES zone_types(id),
             FOREIGN KEY (created_by) REFERENCES users(id),
             FOREIGN KEY (updated_by) REFERENCES users(id),
             FOREIGN KEY (locked_by) REFERENCES users(id)
