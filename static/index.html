@@ -80,28 +80,6 @@
 
     </div>
 
-    <!-- Danger Help Modal (outside toolbar container to avoid stacking context) -->
-    <div id="danger-help-modal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <button class="modal-close" aria-label="Fermer">&times;</button>
-            <h3>Comment déterminer le niveau d'alerte ?</h3>
-            <p>
-                Cette carte classe chaque zone selon un niveau d'alerte afin de déterminer
-                qui sera notifié lorsqu'un parapentiste se pose dans la zone.
-            </p>
-
-            <h4>Niveaux d'alerte</h4>
-            <ul>
-                <li>
-                    <strong>Aucune alerte</strong> : aucune notification.
-                </li>
-                <li>
-                    <strong>Alerte standard</strong> : notification des volontaires engagés.
-                </li>
-            </ul>
-        </div>
-    </div>
-
     <!-- Right drawer (details/edit panel) -->
     <div id="drawer" class="drawer">
         <div class="drawer-header">
@@ -149,7 +127,6 @@
                 <div class="form-group">
                     <div class="form-label-row">
                         <label for="form-severity">Type de zone :</label>
-                        <a href="#" id="danger-help-link" class="danger-help-link">Comment le déterminer ?</a>
                     </div>
                     <select id="form-severity" required>
                         <option value="">-- Chargement des types --</option>
