@@ -3,6 +3,14 @@
  */
 
 const UI = (() => {
+    /** Afficher/masquer le panneau des plafonds (et son shell) */
+    function setQuotaPanelVisible(visible) {
+        const panel = document.getElementById('toolbar-quota');
+        const shell = panel?.closest('.toolbar-shell');
+        if (!panel) return;
+        panel.style.display = visible ? 'flex' : 'none';
+        if (shell) shell.style.display = visible ? 'flex' : 'none';
+    }
     /** Convert severity code to readable label */
     function getSeverityLabel(severity) {
         const labels = {
@@ -148,8 +156,7 @@ const UI = (() => {
         const btnCreate = document.getElementById('btn-create');
         if (btnCreate) btnCreate.style.display = 'none';
         // Masquer le panneau des plafonds quand le sheet coverage est ouvert
-        const quotaShell = document.getElementById('toolbar-quota')?.closest('.toolbar-shell');
-        if (quotaShell) quotaShell.style.display = 'none';
+        setQuotaPanelVisible(false);
         // Marquer le conteneur en mode coverage pour forcer le masquage via CSS
         const shellContainer = document.getElementById('toolbar-shell-container');
         if (shellContainer) shellContainer.classList.add('coverage-mode');
@@ -170,9 +177,7 @@ const UI = (() => {
         // Réafficher le bouton Créer une nouvelle zone
         const btnCreate = document.getElementById('btn-create');
         if (btnCreate) btnCreate.style.display = 'inline-block';
-        // Réafficher le panneau des plafonds
-        const quotaShell = document.getElementById('toolbar-quota')?.closest('.toolbar-shell');
-        if (quotaShell) quotaShell.style.display = 'flex';
+        // Ne pas forcer l'affichage des plafonds ici (géré par app via touche Q)
         // Retirer le marqueur coverage
         const shellContainer = document.getElementById('toolbar-shell-container');
         if (shellContainer) shellContainer.classList.remove('coverage-mode');
@@ -365,15 +370,14 @@ const UI = (() => {
         const coverageOpen = !!(coverageSheet && coverageSheet.style.display !== 'none' && coverageSheet.classList.contains('open'));
         if (coverageOpen) {
             // Masquer uniquement, sans vider le contenu pour pouvoir le réafficher hors-ligne
-            panel.style.display = 'none';
-            if (shell) shell.style.display = 'none';
+            setQuotaPanelVisible(false);
             return;
         }
 
         if (!quota) {
-            panel.style.display = 'none';
+            // Masquer si pas de données
+            setQuotaPanelVisible(false);
             valuesEl.textContent = '';
-            if (shell) shell.style.display = 'none';
             return;
         }
 
@@ -395,8 +399,7 @@ const UI = (() => {
                 <span class="quota-count">${d.used}/${d.limit}</span>
             </div>
         `;
-        panel.style.display = 'flex';
-        if (shell) shell.style.display = 'flex';
+        // Ne pas forcer l'affichage ici; l'app gère via la touche Q
 
         // Attach info modal handlers once
         if (infoBtn && modal && !infoBtn._handlersBound) {
@@ -405,6 +408,9 @@ const UI = (() => {
                 e.stopPropagation();
                 const isShown = modal.style.display === 'flex';
                 modal.style.display = isShown ? 'none' : 'flex';
+                if (window.APP?.applyQuotaVisibility) {
+                    window.APP.applyQuotaVisibility();
+                }
                 const body = modal.querySelector('.modal-body');
                 if (body) {
                     body.innerHTML = `
@@ -415,19 +421,32 @@ const UI = (() => {
             });
             // Close button
             if (modalClose) {
-                modalClose.addEventListener('click', () => { modal.style.display = 'none'; });
+                modalClose.addEventListener('click', () => {
+                    modal.style.display = 'none';
+                    if (window.APP?.applyQuotaVisibility) {
+                        window.APP.applyQuotaVisibility();
+                    }
+                });
             }
             // Hide on outside click (backdrop)
             document.addEventListener('click', (e) => {
                 if (!modal || modal.style.display !== 'flex') return;
                 const content = modal.querySelector('.modal-content');
                 const within = content.contains(e.target) || infoBtn.contains(e.target);
-                if (!within) modal.style.display = 'none';
+                if (!within) {
+                    modal.style.display = 'none';
+                    if (window.APP?.applyQuotaVisibility) {
+                        window.APP.applyQuotaVisibility();
+                    }
+                }
             });
             // Escape key
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape' && modal && modal.style.display === 'flex') {
                     modal.style.display = 'none';
+                    if (window.APP?.applyQuotaVisibility) {
+                        window.APP.applyQuotaVisibility();
+                    }
                 }
             });
         }

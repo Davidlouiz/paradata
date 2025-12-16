@@ -4,6 +4,7 @@
 
 const APP = (() => {
     let map = null;
+    let quotaHoldActive = false; // Affiche les plafonds uniquement quand Q est enfoncée
     let mapLayers = {}; // id -> Leaflet layer
     let stateUnsubscribe = null;
     let pollingIntervalId = null;
@@ -70,10 +71,7 @@ const APP = (() => {
         if (toolbarCoverage) {
             toolbarCoverage.style.display = initialState.isAuthenticated ? 'flex' : 'none';
         }
-        const quotaShell = document.getElementById('toolbar-quota')?.closest('.toolbar-shell');
-        if (quotaShell) {
-            quotaShell.style.display = initialState.isAuthenticated && !initialCoverageOpen ? 'flex' : 'none';
-        }
+        applyQuotaVisibility();
         const toolbarCreate = document.getElementById('toolbar-create');
         if (toolbarCreate) {
             toolbarCreate.style.display = initialState.isAuthenticated && !initialCoverageOpen ? 'flex' : 'none';
@@ -89,10 +87,11 @@ const APP = (() => {
             btnCreate.disabled = initialState.mode === 'DRAW' || initialState.mode === 'EDIT';
         }
         // S'assurer que le statut de toolbar est caché s'il est vide
-        UI.updateDrawStatus('');
-
-        // Initialiser l'affichage utilisateur
-        UI.updateUserDisplay(initialState.currentUser);
+        if (typeof UI !== 'undefined') {
+            UI.updateDrawStatus('');
+            // Initialiser l'affichage utilisateur
+            UI.updateUserDisplay(initialState.currentUser);
+        }
 
         // Démarrer le polling uniquement si le WebSocket n'est pas connecté après un court délai
         setTimeout(() => {
@@ -169,6 +168,10 @@ const APP = (() => {
     }
 
     async function refreshQuotaPanel() {
+        if (typeof UI === 'undefined') {
+            // UI non chargé: ignorer l'affichage, la logique de quota reste côté API
+            return;
+        }
         const state = AppState.getState();
         if (!state.isAuthenticated) {
             UI.updateQuotaPanel(null);
@@ -387,7 +390,7 @@ const APP = (() => {
             if (!el) return;
             const n = typeof count === 'number' ? count : Object.keys(mapLayers).length;
             if (n > 0) {
-                el.textContent = `${n} zone${n > 1 ? 's' : ''} d'alerte répertoriée${n > 1 ? 's' : ''}.`;
+                el.textContent = `${n} zone${n > 1 ? 's' : ''} répertoriée${n > 1 ? 's' : ''}`;
                 el.style.display = 'block';
             } else {
                 el.style.display = 'none';
@@ -517,7 +520,9 @@ const APP = (() => {
             console.log('State changed:', state);
 
             // Mettre à jour l'affichage utilisateur
-            UI.updateUserDisplay(state.currentUser);
+            if (typeof UI !== 'undefined') {
+                UI.updateUserDisplay(state.currentUser);
+            }
 
             // Mettre à jour la visibilité des contrôles
             const isAuth = state.isAuthenticated;
@@ -531,10 +536,8 @@ const APP = (() => {
                 toolbarCoverage.style.display = isAuth && !coverageOpen ? 'flex' : 'none';
             }
 
-            const quotaShell = document.getElementById('toolbar-quota')?.closest('.toolbar-shell');
-            if (quotaShell) {
-                quotaShell.style.display = isAuth && !coverageOpen ? 'flex' : 'none';
-            }
+            // Visibilité des plafonds gérée uniquement par la touche Q
+            applyQuotaVisibility();
 
             const toolbarCreate = document.getElementById('toolbar-create');
             if (toolbarCreate) {
@@ -587,6 +590,29 @@ const APP = (() => {
     }
 
     /**
+     * Afficher/masquer le panneau Plafonds selon: touche Q, auth, coverage sheet, modale
+     */
+    function applyQuotaVisibility() {
+        // Sécurité: si UI n'est pas encore chargé, on ne fait rien
+        if (typeof UI === 'undefined') return;
+
+        const isAuth = AppState.getState().isAuthenticated;
+        const dangerHelpModal = document.getElementById('danger-help-modal');
+        const isDangerHelpOpen = dangerHelpModal && dangerHelpModal.style.display !== 'none';
+        const quotaModal = document.getElementById('quota-modal');
+        const isQuotaModalOpen = quotaModal && quotaModal.style.display === 'flex';
+        const allowed = (quotaHoldActive || isQuotaModalOpen) && isAuth && !isCoverageSheetOpen() && !isDangerHelpOpen;
+        if (typeof UI.setQuotaPanelVisible === 'function') {
+            UI.setQuotaPanelVisible(allowed);
+        } else {
+            const panel = document.getElementById('toolbar-quota');
+            const shell = panel?.closest('.toolbar-shell');
+            if (panel) panel.style.display = allowed ? 'flex' : 'none';
+            if (shell) shell.style.display = allowed ? 'flex' : 'none';
+        }
+    }
+
+    /**
      * Mettre à jour le bouton d'authentification
      */
     function updateLoginButton(state) {
@@ -600,6 +626,38 @@ const APP = (() => {
      * Configurer les écouteurs d'événements du DOM
      */
     function setupEventHandlers() {
+        // Affichage temporaire des plafonds avec F8 (maintenir pour afficher)
+        document.addEventListener('keydown', async (e) => {
+            if (e.key === 'F8') {
+                e.preventDefault(); // Empêcher le comportement par défaut
+                if (!quotaHoldActive) {
+                    quotaHoldActive = true;
+                    applyQuotaVisibility();
+                    try {
+                        // Rafraîchir les valeurs quand on affiche
+                        if (AppState.getState().isAuthenticated) {
+                            const q = await API.getMyQuota();
+                            if (typeof UI !== 'undefined') {
+                                UI.updateQuotaPanel(q);
+                            }
+                        }
+                    } catch (_) {/* silent */ }
+                }
+            }
+        });
+        document.addEventListener('keyup', (e) => {
+            // Cacher dès qu'on relâche F8
+            if (e.key === 'F8' && quotaHoldActive) {
+                quotaHoldActive = false;
+                applyQuotaVisibility();
+            }
+        });
+        window.addEventListener('blur', () => {
+            if (quotaHoldActive) {
+                quotaHoldActive = false;
+                applyQuotaVisibility();
+            }
+        });
         // Bouton Créer
         const btnCreate = document.getElementById('btn-create');
         if (btnCreate) {
@@ -691,13 +749,8 @@ const APP = (() => {
                             btnCreate.disabled = false;
                         }
                     }
-                    // Restaurer le bloc Plafonds si authentifié
-                    const quotaShell = document.getElementById('toolbar-quota')?.closest('.toolbar-shell');
-                    const quotaPanel = document.getElementById('toolbar-quota');
-                    if (AppState.getState().isAuthenticated) {
-                        if (quotaShell) quotaShell.style.display = 'flex';
-                        if (quotaPanel) quotaPanel.style.display = 'flex';
-                    }
+                    // Recalculer la visibilité des plafonds (Q maintenue seulement)
+                    applyQuotaVisibility();
                     // Recharger les quotas pour réafficher le panneau
                     try {
                         if (AppState.getState().isAuthenticated) {
@@ -813,6 +866,7 @@ const APP = (() => {
             dangerHelpLink.addEventListener('click', (e) => {
                 e.preventDefault();
                 UI.openDangerHelpModal();
+                applyQuotaVisibility(); // Cacher les quotas si modale ouverte
             });
         }
 
@@ -827,6 +881,7 @@ const APP = (() => {
             dangerHelpModal.addEventListener('click', (e) => {
                 if (e.target === dangerHelpModal) {
                     UI.closeDangerHelpModal();
+                    applyQuotaVisibility(); // Réafficher quotas si Ctrl+Q maintenu
                 }
             });
 
@@ -837,6 +892,7 @@ const APP = (() => {
                     e.preventDefault();
                     e.stopPropagation();
                     UI.closeDangerHelpModal();
+                    applyQuotaVisibility(); // Réafficher quotas si Ctrl+Q maintenu
                 });
             }
 
@@ -845,9 +901,12 @@ const APP = (() => {
                 if (e.key === 'Escape' && dangerHelpModal.style.display !== 'none') {
                     e.preventDefault();
                     UI.closeDangerHelpModal();
+                    applyQuotaVisibility(); // Réafficher quotas si Ctrl+Q maintenu
                 }
             });
         }
+
+        // (F8 géré via les écouteurs keydown/keyup ci-dessus)
     }
 
     /**
@@ -1226,6 +1285,7 @@ const APP = (() => {
         clearCoverageOnMap: () => { if (coverageLayerGroup) coverageLayerGroup.clearLayers(); },
         cancelEdit,
         updateToolbarShellVisibility,
+        applyQuotaVisibility,
     };
 })();
 
@@ -1273,10 +1333,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 toolbarCreateShell.style.display = 'none';
             }
             // Masquer le bloc Plafonds pendant la gestion des périmètres
-            const quotaShell = document.getElementById('toolbar-quota')?.closest('.toolbar-shell');
-            if (quotaShell) {
-                quotaShell.style.display = 'none';
-            }
+            UI.setQuotaPanelVisible(false);
             // Masquer les toolbar-shell vides
             APP.updateToolbarShellVisibility();
             // Afficher le message d'instruction dans le modal
@@ -1316,7 +1373,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             UI.closeCoverageSheet();
             UI.updateDrawStatus('');
-            // Restaurer la toolbar couverture
+            // Restaurer la toolbar coverage
             const toolbarCoverage = document.getElementById('toolbar-coverage');
             if (toolbarCoverage && AppState.getState().isAuthenticated) {
                 toolbarCoverage.style.display = 'flex';
@@ -1333,13 +1390,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     btnCreate.disabled = false;
                 }
             }
-            // Restaurer le bloc Plafonds si authentifié
-            const quotaShell = document.getElementById('toolbar-quota')?.closest('.toolbar-shell');
-            const quotaPanel = document.getElementById('toolbar-quota');
-            if (AppState.getState().isAuthenticated) {
-                if (quotaShell) quotaShell.style.display = 'flex';
-                if (quotaPanel) quotaPanel.style.display = 'flex';
-            }
+            // Recalculer la visibilité (Q maintenue seulement)
+            applyQuotaVisibility();
             // Recharger les quotas pour réafficher le panneau
             try {
                 if (AppState.getState().isAuthenticated) {
