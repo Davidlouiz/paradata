@@ -8,12 +8,6 @@ const APP = (() => {
     let mapLayers = {}; // id -> Leaflet layer
     let stateUnsubscribe = null;
     let pollingIntervalId = null;
-    let coverageLayerGroup = null; // feature group for volunteer coverage perimeters
-    let coverageLayers = {}; // coverage id -> Leaflet layer
-    function isCoverageSheetOpen() {
-        const sheet = document.getElementById('coverage-sheet');
-        return !!(sheet && sheet.style.display !== 'none' && sheet.classList.contains('open'));
-    }
 
     /**
      * Initialiser l'application
@@ -52,9 +46,7 @@ const APP = (() => {
         // Initialiser les modules
         DRAW.init(map);
 
-        // Groupe de couches pour afficher les périmètres de couverture du volontaire
-        coverageLayerGroup = L.featureGroup();
-        coverageLayerGroup.addTo(map);
+        // Périmètres d'intervention supprimés: pas de couche dédiée
 
         // Initialiser WebSocket pour la synchronisation temps réel
         try {
@@ -77,26 +69,16 @@ const APP = (() => {
         setupStateListener();
         setupEventHandlers();
 
-        // Appliquer l'état initial immédiatement (afficher toolbar couverture si authentifié)
+        // Appliquer l'état initial immédiatement
         const initialState = AppState.getState();
-        const initialCoverageOpen = isCoverageSheetOpen();
-        const toolbarCoverage = document.getElementById('toolbar-coverage');
-        if (toolbarCoverage) {
-            toolbarCoverage.style.display = initialState.isAuthenticated ? 'flex' : 'none';
-        }
         applyQuotaVisibility();
         const toolbarCreate = document.getElementById('toolbar-create');
         if (toolbarCreate) {
-            toolbarCreate.style.display = initialState.isAuthenticated && !initialCoverageOpen ? 'flex' : 'none';
-        }
-        // Afficher le bouton coverage si authentifié
-        const btnCoverage = document.getElementById('btn-coverage');
-        if (btnCoverage) {
-            btnCoverage.style.display = initialState.isAuthenticated ? 'inline-block' : 'none';
+            toolbarCreate.style.display = initialState.isAuthenticated ? 'flex' : 'none';
         }
         const btnCreate = document.getElementById('btn-create');
         if (btnCreate) {
-            btnCreate.style.display = initialState.isAuthenticated && !initialCoverageOpen ? 'inline-block' : 'none';
+            btnCreate.style.display = initialState.isAuthenticated ? 'inline-block' : 'none';
             btnCreate.disabled = initialState.mode === 'DRAW' || initialState.mode === 'EDIT';
         }
         // S'assurer que le statut de toolbar est caché s'il est vide
@@ -118,67 +100,7 @@ const APP = (() => {
         // Masquer les toolbar-shell vides
         updateToolbarShellVisibility();
     }
-    function renderCoverageOnMap(items) {
-        if (!coverageLayerGroup) return;
-        coverageLayerGroup.clearLayers();
-        coverageLayers = {};
-        if (!items || !items.length) return;
-        try {
-            items.forEach((i) => {
-                if (!i.geometry) return;
-                const layer = L.geoJSON(i.geometry, {
-                    style: {
-                        color: '#1976d2',
-                        weight: 2,
-                        opacity: 0.9,
-                        fillOpacity: 0.08,
-                    },
-                    onEachFeature: (feature, layer) => {
-                        layer.on('click', () => {
-                            UI.highlightCoverageListItem(i.id);
-                            highlightCoverageOnMap(i.id);
-                        });
-                    },
-                });
-                layer.addTo(coverageLayerGroup);
-                coverageLayers[i.id] = layer;
-            });
-        } catch (err) {
-            console.warn('Error rendering coverage perimeters:', err);
-        }
-    }
-
-    function highlightCoverageOnMap(coverageId) {
-        // Remettre le style normal pour tous les périmètres
-        Object.values(coverageLayers).forEach(layer => {
-            layer.setStyle({
-                color: '#1976d2',
-                weight: 2,
-                opacity: 0.9,
-                fillOpacity: 0.08,
-            });
-        });
-        // Mettre en surbrillance le périmètre sélectionné
-        if (coverageId && coverageLayers[coverageId]) {
-            coverageLayers[coverageId].setStyle({
-                color: '#1976d2',
-                weight: 3,
-                opacity: 1,
-                fillOpacity: 0.2,
-            });
-            // Retirer la surbrillance après 2 secondes
-            setTimeout(() => {
-                if (coverageLayers[coverageId]) {
-                    coverageLayers[coverageId].setStyle({
-                        color: '#1976d2',
-                        weight: 2,
-                        opacity: 0.9,
-                        fillOpacity: 0.08,
-                    });
-                }
-            }, 2000);
-        }
-    }
+    // Fonctions de rendu des périmètres supprimées
 
     async function refreshQuotaPanel() {
         if (typeof UI === 'undefined') {
@@ -266,10 +188,6 @@ const APP = (() => {
             UI.updateQuotaPanel(null);
             AppState.deselectObject();
             restyleAllLayers();
-            // Fermer le modal des périmètres s'il est ouvert
-            if (isCoverageSheetOpen()) {
-                closeCoverageSheetWithCleanup();
-            }
         } catch (err) {
             UI.notify(`Erreur: ${err.message}`, 'error');
         }
@@ -446,20 +364,9 @@ const APP = (() => {
     }
 
     /**
-     * Fermer le tiroir de périmètres et nettoyer les polygones affichés
-     */
-    function closeCoverageSheetWithCleanup() {
-        UI.closeCoverageSheet();
-        APP.clearCoverageOnMap();
-    }
-
-    /**
     * Sélectionner une zone
      */
     function selectPolygon(obj, layer) {
-        if (isCoverageSheetOpen()) {
-            return; // Bloquer les clics quand le coverage sheet est ouvert
-        }
         const state = AppState.getState();
 
         // Ignorer les clics pendant le dessin d'une nouvelle zone
@@ -540,14 +447,9 @@ const APP = (() => {
 
             // Mettre à jour la visibilité des contrôles
             const isAuth = state.isAuthenticated;
-            const coverageOpen = isCoverageSheetOpen();
             const shellContainer = document.getElementById('toolbar-shell-container');
             if (shellContainer) {
                 shellContainer.style.display = isAuth ? 'flex' : 'none';
-            }
-            const toolbarCoverage = document.getElementById('toolbar-coverage');
-            if (toolbarCoverage) {
-                toolbarCoverage.style.display = isAuth && !coverageOpen ? 'flex' : 'none';
             }
 
             // Visibilité des plafonds gérée uniquement par la touche Q
@@ -555,18 +457,12 @@ const APP = (() => {
 
             const toolbarCreate = document.getElementById('toolbar-create');
             if (toolbarCreate) {
-                toolbarCreate.style.display = isAuth && !coverageOpen ? 'flex' : 'none';
-            }
-
-            // Gérer la visibilité du bouton Mes périmètres d'intervention
-            const btnCoverage = document.getElementById('btn-coverage');
-            if (btnCoverage) {
-                btnCoverage.style.display = isAuth ? 'inline-block' : 'none';
+                toolbarCreate.style.display = isAuth ? 'flex' : 'none';
             }
 
             const btnCreate = document.getElementById('btn-create');
             if (btnCreate) {
-                btnCreate.style.display = isAuth && !coverageOpen ? 'inline-block' : 'none';
+                btnCreate.style.display = isAuth ? 'inline-block' : 'none';
             }
 
             // Mettre à jour le bouton Créer et le bouton Supprimer du formulaire
@@ -604,7 +500,7 @@ const APP = (() => {
     }
 
     /**
-     * Afficher/masquer le panneau Plafonds selon: touche Q, auth, coverage sheet, modale
+     * Afficher/masquer le panneau Plafonds selon: touche Q, auth, modale
      */
     function applyQuotaVisibility() {
         // Sécurité: si UI n'est pas encore chargé, on ne fait rien
@@ -615,7 +511,7 @@ const APP = (() => {
         const isDangerHelpOpen = dangerHelpModal && dangerHelpModal.style.display !== 'none';
         const quotaModal = document.getElementById('quota-modal');
         const isQuotaModalOpen = quotaModal && quotaModal.style.display === 'flex';
-        const allowed = (quotaHoldActive || isQuotaModalOpen) && isAuth && !isCoverageSheetOpen() && !isDangerHelpOpen;
+        const allowed = (quotaHoldActive || isQuotaModalOpen) && isAuth && !isDangerHelpOpen;
         if (typeof UI.setQuotaPanelVisible === 'function') {
             UI.setQuotaPanelVisible(allowed);
         } else {
@@ -737,64 +633,52 @@ const APP = (() => {
 
         // Échap pour annuler dessin/édition
         document.addEventListener('keydown', async (e) => {
-            if (e.key === 'Escape') {
-                // Si le coverage sheet est ouvert, le fermer
-                if (isCoverageSheetOpen()) {
-                    // Si un dessin de périmètre est en cours, l'arrêter d'abord
-                    if (window.map && window.map.pm && window.map.pm.globalDrawModeEnabled()) {
-                        window.map.pm.disableDraw();
-                    }
-                    UI.closeCoverageSheet();
-                    UI.updateDrawStatus('');
-                    // Restaurer la toolbar coverage
-                    const toolbarCoverage = document.getElementById('toolbar-coverage');
-                    if (toolbarCoverage && AppState.getState().isAuthenticated) {
-                        toolbarCoverage.style.display = 'flex';
-                    }
-                    // Restaurer le bloc Créer si authentifié
-                    const toolbarCreateShell = document.getElementById('toolbar-create')?.closest('.toolbar-shell');
-                    const toolbarCreate = document.getElementById('toolbar-create');
-                    const btnCreate = document.getElementById('btn-create');
-                    if (AppState.getState().isAuthenticated) {
-                        if (toolbarCreateShell) toolbarCreateShell.style.display = 'flex';
-                        if (toolbarCreate) toolbarCreate.style.display = 'flex';
-                        if (btnCreate) {
-                            btnCreate.style.display = 'inline-block';
-                            btnCreate.disabled = false;
-                        }
-                    }
-                    // Recalculer la visibilité des plafonds (Q maintenue seulement)
-                    applyQuotaVisibility();
-                    // Recharger les quotas pour réafficher le panneau
-                    try {
-                        if (AppState.getState().isAuthenticated) {
-                            const q = await API.getMyQuota();
-                            UI.updateQuotaPanel(q);
-                        } else {
-                            UI.updateQuotaPanel(null);
-                        }
-                    } catch (e) {
-                        // Ne pas masquer les plafonds si l'appel échoue : garder l'affichage existant
-                        console.warn('Failed to reload quota after ESC closing coverage', e);
-                    }
-                    // Restaurer la visibilité des toolbar-shell
-                    APP.updateToolbarShellVisibility();
-                    APP.clearCoverageOnMap();
-                    return;
-                }
-
-                const state = AppState.getState();
-                if (state.mode === 'DRAW' || state.mode === 'EDIT') {
-                    cancelEdit(true); // Ne pas ré-sélectionner
-                } else if (state.selectedObjectId !== null) {
-                    AppState.deselectObject();
-                    restyleAllLayers();
-                    UI.closeDrawer();
-                }
+            if (e.key !== 'Escape') return;
+            const state = AppState.getState();
+            if (state.mode === 'DRAW' || state.mode === 'EDIT') {
+                cancelEdit(true); // Ne pas ré-sélectionner
+            } else if (state.selectedObjectId !== null) {
+                AppState.deselectObject();
+                restyleAllLayers();
+                UI.closeDrawer();
             }
         });
 
-        // Auth: soumission login
+        // Auth: gestion modale et formulaires
+        const btnCloseAuth = document.getElementById('btn-close-auth');
+        if (btnCloseAuth) {
+            btnCloseAuth.addEventListener('click', (e) => {
+                e.preventDefault();
+                UI.hideLoginModal();
+            });
+        }
+
+        const btnToggleRegister = document.getElementById('btn-toggle-register');
+        if (btnToggleRegister) {
+            btnToggleRegister.addEventListener('click', (e) => {
+                e.preventDefault();
+                const loginForm = document.getElementById('login-form');
+                const registerForm = document.getElementById('register-form');
+                if (loginForm) loginForm.style.display = 'none';
+                if (registerForm) registerForm.style.display = 'block';
+                const regUser = document.getElementById('register-username');
+                regUser?.focus();
+            });
+        }
+
+        const btnToggleLogin = document.getElementById('btn-toggle-login');
+        if (btnToggleLogin) {
+            btnToggleLogin.addEventListener('click', (e) => {
+                e.preventDefault();
+                const loginForm = document.getElementById('login-form');
+                const registerForm = document.getElementById('register-form');
+                if (loginForm) loginForm.style.display = 'block';
+                if (registerForm) registerForm.style.display = 'none';
+                const userEl = document.getElementById('login-username');
+                userEl?.focus();
+            });
+        }
+
         const loginForm = document.getElementById('login-form');
         if (loginForm) {
             loginForm.addEventListener('submit', async (e) => {
@@ -802,75 +686,39 @@ const APP = (() => {
                 const username = document.getElementById('login-username')?.value.trim();
                 const password = document.getElementById('login-password')?.value;
                 if (!username || !password) {
-                    UI.showAuthMessage('Veuillez remplir tous les champs', true);
+                    UI.showAuthMessage('Identifiants manquants', true);
                     return;
                 }
                 try {
                     await login(username, password);
-                    loginForm.reset();
                     UI.hideLoginModal();
                 } catch (err) {
-                    UI.showAuthMessage(err.message || 'Échec de la connexion', true);
+                    UI.showAuthMessage(err?.message || 'Connexion impossible', true);
                 }
             });
         }
 
-        // Auth: soumission inscription
         const registerForm = document.getElementById('register-form');
         if (registerForm) {
             registerForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const username = document.getElementById('register-username')?.value.trim();
                 const password = document.getElementById('register-password')?.value;
-                const confirmPassword = document.getElementById('register-password-confirm')?.value;
-                if (!username || !password || !confirmPassword) {
-                    UI.showAuthMessage('Veuillez remplir tous les champs', true);
+                const confirm = document.getElementById('register-password-confirm')?.value;
+                if (!username || !password) {
+                    UI.showAuthMessage('Champs requis manquants', true);
                     return;
                 }
-                if (password !== confirmPassword) {
+                if (password !== confirm) {
                     UI.showAuthMessage('Les mots de passe ne correspondent pas', true);
                     return;
                 }
                 try {
                     await register(username, password);
-                    registerForm.reset();
                     UI.hideLoginModal();
                 } catch (err) {
-                    UI.showAuthMessage(err.message || "Échec de l'inscription", true);
+                    UI.showAuthMessage(err?.message || 'Inscription impossible', true);
                 }
-            });
-        }
-
-        // Auth: toggle vers inscription
-        const btnToggleRegister = document.getElementById('btn-toggle-register');
-        if (btnToggleRegister) {
-            btnToggleRegister.addEventListener('click', (e) => {
-                e.preventDefault();
-                document.getElementById('login-form')?.setAttribute('style', 'display: none;');
-                document.getElementById('register-form')?.setAttribute('style', 'display: block;');
-                const msg = document.getElementById('auth-message');
-                if (msg) msg.style.display = 'none';
-            });
-        }
-
-        // Auth: toggle retour connexion
-        const btnToggleLogin = document.getElementById('btn-toggle-login');
-        if (btnToggleLogin) {
-            btnToggleLogin.addEventListener('click', (e) => {
-                e.preventDefault();
-                document.getElementById('register-form')?.setAttribute('style', 'display: none;');
-                document.getElementById('login-form')?.setAttribute('style', 'display: block;');
-                const msg = document.getElementById('auth-message');
-                if (msg) msg.style.display = 'none';
-            });
-        }
-
-        // Auth: fermer la modale
-        const btnCloseAuth = document.getElementById('btn-close-auth');
-        if (btnCloseAuth) {
-            btnCloseAuth.addEventListener('click', (e) => {
-                e.preventDefault();
-                UI.hideLoginModal();
             });
         }
 
@@ -927,9 +775,6 @@ const APP = (() => {
     * FLUX 2 : Démarrer le mode CREATE (dessiner une nouvelle zone)
      */
     function startCreate() {
-        if (isCoverageSheetOpen()) {
-            closeCoverageSheetWithCleanup(); // Fermer et nettoyer les périmètres
-        }
         const state = AppState.getState();
         if (!state.isAuthenticated) {
             UI.notify('Vous devez être connecté', 'error');
@@ -1294,9 +1139,6 @@ const APP = (() => {
         loadMapObjects,
         startPolling,
         stopPolling,
-        renderCoverageOnMap,
-        highlightCoverageOnMap,
-        clearCoverageOnMap: () => { if (coverageLayerGroup) coverageLayerGroup.clearLayers(); },
         cancelEdit,
         updateToolbarShellVisibility,
         applyQuotaVisibility,
@@ -1309,174 +1151,4 @@ window.APP = APP;
 // Initialiser au chargement du DOM
 document.addEventListener('DOMContentLoaded', () => {
     APP.init().catch(err => console.error('Initialization error:', err));
-    // Coverage sheet wiring
-    console.log('DOMContentLoaded: Setting up coverage button handler');
-    const btnCoverage = document.getElementById('btn-coverage');
-    console.log('btnCoverage element:', btnCoverage);
-    const btnCoverageAdd = document.getElementById('coverage-add');
-    console.log('btnCoverageAdd element:', btnCoverageAdd);
-    const btnCoverageClose = document.getElementById('coverage-close');
-    console.log('btnCoverageClose element:', btnCoverageClose);
-    if (btnCoverage) {
-        btnCoverage.addEventListener('click', async () => {
-            console.log('Coverage button clicked');
-            // Revenir en mode par défaut avant d'ouvrir Mes périmètres d'intervention
-            const state = AppState.getState();
-            if (state.mode === 'DRAW' || state.mode === 'EDIT') {
-                await APP.cancelEdit(true);
-            } else {
-                AppState.setViewMode();
-                AppState.deselectObject();
-                UI.closeDrawer();
-                DRAW.stopDrawMode();
-                DRAW.clearDrawnLayers();
-                UI.hideSaveCancel();
-                UI.updateDrawStatus('');
-            }
-
-            console.log('Opening coverage sheet...');
-            UI.openCoverageSheet();
-            // Masquer la toolbar couverture pendant la gestion des périmètres
-            const toolbarCoverage = document.getElementById('toolbar-coverage');
-            if (toolbarCoverage) {
-                toolbarCoverage.style.display = 'none';
-            }
-            // Masquer le bloc Créer pendant la gestion des périmètres
-            const toolbarCreateShell = document.getElementById('toolbar-create')?.closest('.toolbar-shell');
-            if (toolbarCreateShell) {
-                toolbarCreateShell.style.display = 'none';
-            }
-            // Masquer le bloc Plafonds pendant la gestion des périmètres
-            UI.setQuotaPanelVisible(false);
-            // Masquer les toolbar-shell vides
-            APP.updateToolbarShellVisibility();
-            // Afficher le message d'instruction dans le modal
-            const coverageInstruction = document.getElementById('coverage-instruction');
-            if (coverageInstruction) {
-                coverageInstruction.innerHTML = `
-                    <span style="display: block; line-height: 1.5;">
-                    En définissant vos périmètres, vous acceptez d'être alerté lorsqu'un parapentiste 
-                    s'y pose et de vérifier, dans la mesure du possible, que tout va bien.
-                    </span>
-                    <span style="display: block; margin-top: 10px; font-size: 13px; color: #888;">
-                    Cliquez sur « Ajouter un périmètre » pour définir votre zone d'intervention.
-                    </span>
-                `;
-            }
-            try {
-                console.log('Fetching coverage list...');
-                const res = await API.listMyCoverage();
-                console.log('Coverage list response:', res);
-                const items = (res && res.data) || [];
-                UI.renderCoverageList(items, (data) => APP.renderCoverageOnMap(data || []));
-                APP.renderCoverageOnMap(items);
-                console.log('Coverage list rendered');
-            } catch (err) {
-                console.error('Error loading coverage:', err);
-                UI.renderCoverageList([]);
-                APP.renderCoverageOnMap([]);
-                console.warn('Failed to load coverage perimeters:', err);
-            }
-        });
-    }
-    if (btnCoverageClose) {
-        btnCoverageClose.addEventListener('click', async () => {
-            // Si un dessin de périmètre est en cours, l'arrêter d'abord
-            if (window.map && window.map.pm && window.map.pm.globalDrawModeEnabled()) {
-                window.map.pm.disableDraw();
-            }
-            UI.closeCoverageSheet();
-            UI.updateDrawStatus('');
-            // Restaurer la toolbar coverage
-            const toolbarCoverage = document.getElementById('toolbar-coverage');
-            if (toolbarCoverage && AppState.getState().isAuthenticated) {
-                toolbarCoverage.style.display = 'flex';
-            }
-            // Restaurer le bloc Créer si authentifié
-            const toolbarCreateShell = document.getElementById('toolbar-create')?.closest('.toolbar-shell');
-            const toolbarCreate = document.getElementById('toolbar-create');
-            const btnCreate = document.getElementById('btn-create');
-            if (AppState.getState().isAuthenticated) {
-                if (toolbarCreateShell) toolbarCreateShell.style.display = 'flex';
-                if (toolbarCreate) toolbarCreate.style.display = 'flex';
-                if (btnCreate) {
-                    btnCreate.style.display = 'inline-block';
-                    btnCreate.disabled = false;
-                }
-            }
-            // Recalculer la visibilité (Q maintenue seulement)
-            applyQuotaVisibility();
-            // Recharger les quotas pour réafficher le panneau
-            try {
-                if (AppState.getState().isAuthenticated) {
-                    const q = await API.getMyQuota();
-                    UI.updateQuotaPanel(q);
-                } else {
-                    UI.updateQuotaPanel(null);
-                }
-            } catch (e) {
-                // Ne pas masquer les plafonds si l'appel échoue : garder l'affichage existant
-                console.warn('Failed to reload quota after closing coverage', e);
-            }
-            // Restaurer la visibilité des toolbar-shell
-            APP.updateToolbarShellVisibility();
-            // Nettoyer les périmètres affichés
-            APP.clearCoverageOnMap();
-        });
-    }
-    if (btnCoverageAdd) {
-        btnCoverageAdd.addEventListener('click', async () => {
-            if (!window.map || !window.map.pm) {
-                UI.notify("Outil de dessin indisponible", 'error');
-                return;
-            }
-            // Indiquer à l'utilisateur qu'il peut dessiner
-            UI.updateDrawStatus('Dessinez un périmètre de couverture sur la carte.');
-            UI.notify('Cliquez pour dessiner un périmètre, puis terminez.', 'info');
-            window.map.pm.enableDraw('Polygon', {
-                snappable: true,
-                allowSelfIntersection: false,
-            });
-            const onCreate = async (e) => {
-                try {
-                    const layer = e.layer;
-                    const geo = layer.toGeoJSON().geometry;
-                    await API.addCoverage(geo);
-                    UI.notify('Périmètre ajouté', 'success');
-                    // Retirer la couche temporaire dessinée (elle sera rechargée depuis l'API)
-                    try {
-                        if (layer && window.map && window.map.hasLayer(layer)) {
-                            window.map.removeLayer(layer);
-                        }
-                    } catch (_) { /* ignore cleanup errors */ }
-                    // Rafraîchir la liste et l'affichage carte
-                    try {
-                        const res = await API.listMyCoverage();
-                        const items = (res && res.data) || [];
-                        UI.renderCoverageList(items, (data) => APP.renderCoverageOnMap(data || []));
-                        APP.renderCoverageOnMap(items);
-                    } catch (err2) {
-                        console.warn('Failed to refresh coverage list/map:', err2);
-                    }
-                } catch (err) {
-                    const detail = err?.data?.detail || err?.message || 'Erreur inconnue';
-                    const errorMsg = `Échec de l'ajout du périmètre: ${detail}`;
-                    UI.notify(errorMsg, 'error');
-                    console.error(err);
-                    // Remove the temp layer if the add failed
-                    try {
-                        if (e?.layer && window.map && window.map.hasLayer(e.layer)) {
-                            window.map.removeLayer(e.layer);
-                        }
-                    } catch (_) { /* ignore cleanup errors */ }
-                } finally {
-                    window.map.off('pm:create', onCreate);
-                    window.map.pm.disableDraw('Polygon');
-                    // Nettoyer le statut de dessin
-                    UI.updateDrawStatus('');
-                }
-            };
-            window.map.on('pm:create', onCreate);
-        });
-    }
 });

@@ -75,15 +75,7 @@
             </div>
         </div>
 
-        <div class="toolbar-shell toolbar-shell-coverage-floating toolbar-shell-secondary">
-            <!-- Toolbar (for authenticated users) -->
-            <div id="toolbar-coverage" class="toolbar toolbar-vertical" style="display: none;">
-                <button id="btn-coverage" class="btn btn-primary" title="Gérer mes périmètres d'intervention"
-                    style="display: none;">
-                    🛡️ Mon périmètre d'intervention
-                </button>
-            </div>
-        </div>
+        <!-- Périmètres d'intervention supprimés -->
 
 
     </div>
@@ -128,23 +120,7 @@
                     <p id="info-description"></p>
                 </div>
             </div>
-            <hr id="hr-volunteers" style="margin: 16px 0; border: none; border-top: 1px solid #ddd; width: 100%;">
-            <div id="info-volunteers-total" class="info-row" style="display: none;">
-                <label>Volontaires veillant sur cette zone:</label>
-                <ul id="info-volunteers-total-list" style="margin: 0; list-style-type: none;">
-                    <!-- Items will be injected with custom bullet -->
-                </ul>
-            </div>
-            <div id="info-volunteers-partial" class="info-row" style="display: none;">
-                <label>Volontaires veillant partiellement sur cette zone:</label>
-                <ul id="info-volunteers-partial-list" style="margin: 0; list-style-type: none;">
-                    <!-- Items will be injected with custom bullet -->
-                </ul>
-            </div>
-            <div id="info-volunteers-none" class="info-row" style="display: none;">
-                <span>⚠️ <span style="color: #666; font-style: italic;">Personne ne veille actuellement sur cette zone.
-                        Envisagez de trouver des volontaires pour assurer sa sécurité.</span></span>
-            </div>
+            <!-- Infos de volontaires supprimées -->
             <div id="lock-info" class="info-row lock-warning" style="display: none;">
                 <span id="lock-message"></span>
             </div>
@@ -216,22 +192,7 @@
         </div>
     </div>
 
-    <!-- Coverage Sheet Modal (top-level) -->
-    <div id="coverage-sheet" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="drawer-header">
-                <h3 class="modal-title">Mes périmètres d'intervention</h3>
-                <button class="btn-close" id="coverage-close" aria-label="Fermer">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p id="coverage-instruction" style="margin-bottom: 12px; color: #666; font-size: 14px;"></p>
-                <div class="form-label-row" style="margin-bottom: 8px;">
-                    <button id="coverage-add" class="btn btn-primary" type="button">Ajouter un périmètre</button>
-                </div>
-                <ul id="coverage-list" class="coverage-list" style="list-style: none; padding: 0; margin: 0;"></ul>
-            </div>
-        </div>
-    </div>
+    <!-- Feuille de périmètres supprimée -->
 
     <!-- Login modal -->
     <div id="login-modal" class="modal" style="display: none;">

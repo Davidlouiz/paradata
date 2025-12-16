@@ -107,60 +107,8 @@ const UI = (() => {
             }
         }
 
-        // Fetch and display volunteers covering this zone (separated by coverage type)
-        const infoVolunteersTotal = document.getElementById('info-volunteers-total');
-        const infoVolunteersTotalList = document.getElementById('info-volunteers-total-list');
-        const infoVolunteersPartial = document.getElementById('info-volunteers-partial');
-        const infoVolunteersPartialList = document.getElementById('info-volunteers-partial-list');
-        const infoVolunteersNone = document.getElementById('info-volunteers-none');
-        const hrVolunteers = document.getElementById('hr-volunteers');
+        // Affichages de volontaires supprimés
         const drawerFooter = document.querySelector('.drawer-footer');
-        if (obj?.id && infoVolunteersTotal && infoVolunteersTotalList && infoVolunteersPartial && infoVolunteersPartialList && infoVolunteersNone) {
-            API.getVolunteersCovering(obj.id)
-                .then(res => {
-                    const total = (res?.data || []).filter(v => v.coverage_type === 'totale');
-                    const partial = (res?.data || []).filter(v => v.coverage_type === 'partielle');
-
-                    if (total.length > 0) {
-                        infoVolunteersTotalList.innerHTML = total.map(v =>
-                            `<li style="margin-bottom: 4px;">− ${v.username}</li>`
-                        ).join('');
-                        infoVolunteersTotal.style.display = 'block';
-                    } else {
-                        infoVolunteersTotal.style.display = 'none';
-                    }
-
-                    if (partial.length > 0) {
-                        infoVolunteersPartialList.innerHTML = partial.map(v =>
-                            `<li style="margin-bottom: 4px;">− ${v.username}</li>`
-                        ).join('');
-                        infoVolunteersPartial.style.display = 'block';
-                    } else {
-                        infoVolunteersPartial.style.display = 'none';
-                    }
-
-                    // Show "no volunteers" message if neither total nor partial
-                    if (total.length === 0 && partial.length === 0) {
-                        infoVolunteersNone.style.display = 'block';
-                    } else {
-                        infoVolunteersNone.style.display = 'none';
-                    }
-
-                    // Show hr-volunteers separator when at least one volunteers section is visible
-                    if (hrVolunteers) {
-                        hrVolunteers.style.display = 'block';
-                    }
-                })
-                .catch(err => {
-                    console.warn('Failed to fetch volunteers:', err);
-                    infoVolunteersTotal.style.display = 'none';
-                    infoVolunteersPartial.style.display = 'none';
-                    infoVolunteersNone.style.display = 'none';
-                    if (hrVolunteers) {
-                        hrVolunteers.style.display = 'none';
-                    }
-                });
-        }
 
         openDrawer();
 
@@ -171,124 +119,7 @@ const UI = (() => {
         const drawer = document.getElementById('drawer');
         if (drawer && drawer.classList) drawer.classList.add('open');
     }
-    // Coverage sheet (modal) controls
-    function openCoverageSheet() {
-        const sheet = document.getElementById('coverage-sheet');
-        if (sheet) {
-            sheet.style.display = 'flex';
-            if (sheet.classList) {
-                sheet.classList.remove('open');
-                // Defer adding the class to allow CSS transition from initial transform
-                requestAnimationFrame(() => {
-                    requestAnimationFrame(() => sheet.classList.add('open'));
-                });
-            }
-        }
-        // Désactiver le bouton Mes périmètres d'intervention
-        const btnCoverage = document.getElementById('btn-coverage');
-        if (btnCoverage) btnCoverage.disabled = true;
-        // Masquer le bouton Créer une nouvelle zone
-        const btnCreate = document.getElementById('btn-create');
-        if (btnCreate) btnCreate.style.display = 'none';
-        // Masquer le panneau des plafonds quand le sheet coverage est ouvert
-        setQuotaPanelVisible(false);
-        // Marquer le conteneur en mode coverage pour forcer le masquage via CSS
-        const shellContainer = document.getElementById('toolbar-shell-container');
-        if (shellContainer) shellContainer.classList.add('coverage-mode');
-    }
-
-    function closeCoverageSheet() {
-        const sheet = document.getElementById('coverage-sheet');
-        if (sheet) {
-            if (sheet.classList) sheet.classList.remove('open');
-            // Wait for transition to finish before hiding to keep closing animation
-            setTimeout(() => {
-                sheet.style.display = 'none';
-            }, 320);
-        }
-        // Réactiver le bouton Mes périmètres d'intervention
-        const btnCoverage = document.getElementById('btn-coverage');
-        if (btnCoverage) btnCoverage.disabled = false;
-        // Réafficher le bouton Créer une nouvelle zone
-        const btnCreate = document.getElementById('btn-create');
-        if (btnCreate) btnCreate.style.display = 'inline-block';
-        // Ne pas forcer l'affichage des plafonds ici (géré par app via touche Q)
-        // Retirer le marqueur coverage
-        const shellContainer = document.getElementById('toolbar-shell-container');
-        if (shellContainer) shellContainer.classList.remove('coverage-mode');
-    }
-
-    function renderCoverageList(items, onChange) {
-        const ul = document.getElementById('coverage-list');
-        if (!ul) return;
-        if (!items || !items.length) {
-            ul.innerHTML = '<li style="color:#666;">Aucun périmètre défini</li>';
-            return;
-        }
-        ul.innerHTML = items.map(i => (
-            `<li class="coverage-list-item" data-coverage-id="${i.id}" style="display:flex; align-items:center; justify-content:space-between; padding:6px 8px; border:1px solid #e5e5e5; border-radius:6px; margin-bottom:6px; background:#fafafa; cursor:pointer;">
-                <span>Périmètre #${i.id}</span>
-                <span class="actions">
-                    <button class="btn btn-secondary" data-action="delete" data-id="${i.id}">Supprimer</button>
-                </span>
-            </li>`
-        )).join('');
-        // Ajouter l'événement click sur les éléments de la liste pour surbrillance sur la carte
-        ul.querySelectorAll('.coverage-list-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                // Ne pas déclencher si on clique sur le bouton Supprimer
-                if (e.target.closest('[data-action="delete"]')) return;
-                const id = Number(item.dataset.coverageId);
-                if (window.APP && window.APP.highlightCoverageOnMap) {
-                    window.APP.highlightCoverageOnMap(id);
-                }
-                highlightCoverageListItem(id);
-            });
-        });
-        ul.querySelectorAll('[data-action="delete"]').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.stopPropagation(); // Empêcher le click de remonter à l'élément parent
-                const id = Number(btn.dataset.id);
-                try {
-                    await API.deleteCoverage(id);
-                    const res = await API.listMyCoverage();
-                    const data = (res && res.data) || [];
-                    renderCoverageList(data, onChange);
-                    if (onChange) onChange(data);
-                } catch (err) {
-                    console.error('Delete coverage failed', err);
-                }
-            });
-        });
-    }
-
-    function highlightCoverageListItem(coverageId) {
-        // Retirer la surbrillance de tous les éléments
-        document.querySelectorAll('.coverage-list-item').forEach(li => {
-            li.classList.remove('highlighted');
-        });
-        // Ajouter la surbrillance à l'élément sélectionné
-        if (coverageId) {
-            const item = document.querySelector(`[data-coverage-id="${coverageId}"]`);
-            if (item) {
-                item.classList.add('highlighted');
-                item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                // Retirer la surbrillance après 2 secondes
-                setTimeout(() => {
-                    item.classList.remove('highlighted');
-                }, 2000);
-            }
-        }
-    }
-
-    async function refreshCoverageList() {
-        try {
-            const res = await API.listMyCoverage();
-            renderCoverageList((res && res.data) || []);
-        } catch (e) {
-            renderCoverageList([]);
-        }
-    }
+    // Feuille de périmètres supprimée
 
     function showDrawerForm(obj = null) {
         const drawerDetails = document.getElementById('drawer-details');
@@ -403,14 +234,6 @@ const UI = (() => {
         const modal = document.getElementById('quota-modal');
         const modalClose = document.getElementById('quota-modal-close');
         if (!panel || !valuesEl) return;
-
-        const coverageSheet = document.getElementById('coverage-sheet');
-        const coverageOpen = !!(coverageSheet && coverageSheet.style.display !== 'none' && coverageSheet.classList.contains('open'));
-        if (coverageOpen) {
-            // Masquer uniquement, sans vider le contenu pour pouvoir le réafficher hors-ligne
-            setQuotaPanelVisible(false);
-            return;
-        }
 
         if (!quota) {
             // Masquer si pas de données
@@ -610,22 +433,22 @@ const UI = (() => {
     }
 
     function showAuthMessage(msg, isError = false) {
-        // L'alerte inline est désormais inutilisée; on s'appuie sur le toast + shake.
         const el = document.getElementById('auth-message');
         if (el) {
             el.style.display = 'none';
         }
 
+        if (msg) {
+            notify(msg, isError ? 'error' : 'info');
+        }
+
         if (isError) {
-            notify(msg || 'Erreur', 'error');
             const modalContent = document.querySelector('#login-modal .modal-content');
             if (modalContent) {
                 modalContent.classList.remove('shake');
                 void modalContent.offsetWidth;
                 modalContent.classList.add('shake');
             }
-        } else if (msg) {
-            notify(msg, 'info');
         }
     }
 
@@ -645,11 +468,6 @@ const UI = (() => {
         setZoneTypes,
         showDrawerEmpty,
         openDrawer,
-        openCoverageSheet,
-        closeCoverageSheet,
-        renderCoverageList,
-        refreshCoverageList,
-        highlightCoverageListItem,
         closeDrawer,
         updateUserDisplay,
         updateQuotaPanel,

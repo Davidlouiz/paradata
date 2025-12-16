@@ -101,22 +101,7 @@ def init_db():
         "CREATE INDEX IF NOT EXISTS idx_audit_log_object ON audit_log(object_id)"
     )
 
-    # Volunteer coverage table: polygons defined by users for monitoring
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS volunteer_coverage (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            geometry TEXT NOT NULL,
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP,
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-        """
-    )
-    cursor.execute(
-        "CREATE INDEX IF NOT EXISTS idx_volunteer_coverage_user ON volunteer_coverage(user_id)"
-    )
+    # Table volunteer_coverage supprimée
 
     # Clean up legacy daily_quota table (unused since quotas derive from audit_log)
     cursor.execute("DROP TABLE IF EXISTS daily_quota")
