@@ -15,8 +15,9 @@ const DRAW = (() => {
     let pendingCreateHoverListener = null;
 
     function getColorBySeverity(severity) {
-        if (severity === 'ALERT_STANDARD') return '#d32f2f';
-        if (severity === 'NO_ALERT') return '#7cb342';
+        const state = AppState.getState();
+        const zoneType = state.zoneTypes?.find(t => t.code === severity);
+        if (zoneType) return zoneType.color;
         return '#666';
     }
 
@@ -304,10 +305,8 @@ const DRAW = (() => {
         if (!currentDrawnLayer) return;
         if (currentMode !== 'EDIT' && currentMode !== 'CREATE') return;
 
-        // Déterminer la couleur selon la sévérité
-        let color = '#666'; // Gris foncé par défaut (pas de sévérité)
-        if (severity === 'ALERT_STANDARD') color = '#d32f2f';
-        else if (severity === 'NO_ALERT') color = '#7cb342';
+        // Déterminer la couleur via getColorBySeverity (zone types dynamiques)
+        const color = getColorBySeverity(severity);
 
         // Stocker la couleur désirée ET appliquer le style
         currentDrawnLayer._desiredColor = color;

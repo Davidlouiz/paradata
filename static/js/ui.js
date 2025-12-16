@@ -3,6 +3,7 @@
  */
 
 const UI = (() => {
+    let zoneTypes = [];
     /** Afficher/masquer le panneau des plafonds (et son shell) */
     function setQuotaPanelVisible(visible) {
         const panel = document.getElementById('toolbar-quota');
@@ -13,11 +14,45 @@ const UI = (() => {
     }
     /** Convert severity code to readable label */
     function getSeverityLabel(severity) {
-        const labels = {
-            'NO_ALERT': 'Aucune alerte',
-            'ALERT_STANDARD': 'Alerte standard',
-        };
-        return labels[severity] || severity || '—';
+        const found = zoneTypes.find(t => t.code === severity);
+        if (found) return found.name;
+        return severity || '—';
+    }
+
+    /** Inject zone types and refresh select options */
+    function setZoneTypes(types) {
+        zoneTypes = Array.isArray(types) ? [...types] : [];
+        populateSeverityOptions();
+    }
+
+    function populateSeverityOptions(selectedValue) {
+        const select = document.getElementById('form-severity');
+        if (!select) return;
+        const targetValue = selectedValue !== undefined ? selectedValue : select.value;
+        select.innerHTML = '';
+
+        if (zoneTypes.length === 0) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = 'Aucun type disponible';
+            select.appendChild(opt);
+            select.value = '';
+            return;
+        }
+
+        zoneTypes.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.code;
+            opt.textContent = t.name;
+            select.appendChild(opt);
+        });
+
+        if (targetValue) {
+            select.value = targetValue;
+        }
+        if (!select.value && zoneTypes.length > 0) {
+            select.value = zoneTypes[0].code;
+        }
     }
 
     function showDrawerDetails(obj) {
@@ -281,7 +316,10 @@ const UI = (() => {
         if (title) title.textContent = obj ? `Modifier #${obj.id}` : 'Nouvelle zone';
 
         const formSeverity = document.getElementById('form-severity');
-        if (formSeverity) formSeverity.value = obj?.severity || '';
+        if (formSeverity) {
+            populateSeverityOptions(obj?.severity || '');
+            formSeverity.value = obj?.severity || formSeverity.value;
+        }
 
         const formDescription = document.getElementById('form-description');
         if (formDescription) formDescription.value = obj?.description || '';
@@ -604,6 +642,7 @@ const UI = (() => {
     return {
         showDrawerDetails,
         showDrawerForm,
+        setZoneTypes,
         showDrawerEmpty,
         openDrawer,
         openCoverageSheet,

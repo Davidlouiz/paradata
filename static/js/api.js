@@ -141,6 +141,12 @@ const API = {
         return res;
     },
 
+    // ========= Zone Types =========
+    async getZoneTypes() {
+        const res = await this.request('GET', '/zone-types');
+        return res;
+    },
+
     // ========= Volunteers Endpoints =========
     async listMyCoverage() {
         const res = await this.request('GET', '/volunteers/coverage/me');

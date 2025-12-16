@@ -109,6 +109,23 @@ def parse_utc(dt_str: str) -> datetime:
     return dt
 
 
+def _ensure_zone_type(conn, code: str):
+    """Validate that the zone type code exists."""
+    if not code:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Le type de zone est requis",
+        )
+    cursor = conn.cursor()
+    cursor.execute("SELECT code FROM zone_types WHERE code = ?", (code,))
+    row = cursor.fetchone()
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Type de zone inconnu: {code}",
+        )
+
+
 def serialize_map_object(row: dict, conn=None) -> MapObjectResponse:
     """Convert database row to MapObjectResponse."""
     if not row:
@@ -338,6 +355,8 @@ async def create_map_object(req: MapObjectCreate, user: dict = Depends(require_l
         )
 
     conn = get_db()
+    _ensure_zone_type(conn, req.severity)
+
     # Prevent overlapping zones
     if _geometry_intersects_existing(conn, req.geometry):
         conn.close()
@@ -546,6 +565,8 @@ async def update_map_object(
     new_description = (
         req.description if req.description is not None else obj["description"]
     )
+
+    _ensure_zone_type(conn, new_severity)
 
     if req.geometry:
         if not req.geometry or req.geometry.get("type") not in [

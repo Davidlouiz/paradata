@@ -20,6 +20,28 @@ def init_db():
     conn = get_db()
     cursor = conn.cursor()
 
+    # Zone types table (dynamic list of severities)
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS zone_types (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL,
+            color_hex TEXT NOT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+    # Seed default zone types if missing
+    cursor.execute(
+        """
+        INSERT OR IGNORE INTO zone_types (code, name, color_hex) VALUES
+        ('NO_ALERT', 'Aucune alerte', '#7cb342'),
+        ('ALERT_STANDARD', 'Alerte standard', '#d32f2f')
+        """
+    )
+
     # Users table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
@@ -31,11 +53,12 @@ def init_db():
     """)
 
     # Map objects table
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS map_objects (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             geometry TEXT NOT NULL,
-            severity TEXT NOT NULL CHECK(severity IN ('NO_ALERT', 'ALERT_STANDARD')),
+            severity TEXT NOT NULL REFERENCES zone_types(code),
             description TEXT,
             created_by INTEGER NOT NULL,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -48,7 +71,8 @@ def init_db():
             FOREIGN KEY (updated_by) REFERENCES users(id),
             FOREIGN KEY (locked_by) REFERENCES users(id)
         )
-    """)
+    """
+    )
 
     # Audit log table
     cursor.execute("""

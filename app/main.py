@@ -10,6 +10,7 @@ from typing import Optional
 from app.database import init_db, get_db
 from app.api import auth, map_objects
 from app.api import volunteers
+from app.api import danger_types
 from app.services.ws_manager import manager
 
 # Initialize database
@@ -97,6 +98,7 @@ async def auth_user(sid, data):
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(map_objects.router, prefix="/map-objects", tags=["map-objects"])
 app.include_router(volunteers.router)
+app.include_router(danger_types.router)
 
 # Inject Socket.IO instance into map_objects router
 map_objects.set_sio(sio)

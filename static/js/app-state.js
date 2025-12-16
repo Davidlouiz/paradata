@@ -34,6 +34,9 @@ const AppState = (() => {
 
         // Quota
         remainingQuota: null,
+
+        // Zone types (severity list)
+        zoneTypes: [],
     };
 
     const listeners = new Set();
@@ -265,6 +268,14 @@ const AppState = (() => {
     }
 
     /**
+     * Définir les types de zone disponibles
+     */
+    function setZoneTypes(types) {
+        state.zoneTypes = Array.isArray(types) ? [...types] : [];
+        notify();
+    }
+
+    /**
      * Obtenir l'état courant (en lecture seule)
      */
     function getState() {
@@ -326,6 +337,7 @@ const AppState = (() => {
         setLockStatus,
         refreshLockStatus,
         setRemainingQuota,
+        setZoneTypes,
 
         canEditObject,
         canDraw,

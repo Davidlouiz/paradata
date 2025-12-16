@@ -21,6 +21,19 @@ const APP = (() => {
     async function init() {
         console.log('APP.init()');
 
+        // Charger les types de zones disponibles au démarrage
+        try {
+            const res = await API.getZoneTypes();
+            if (res.success && res.data) {
+                AppState.setZoneTypes(res.data);
+                if (typeof UI !== 'undefined' && typeof UI.setZoneTypes === 'function') {
+                    UI.setZoneTypes(res.data);
+                }
+            }
+        } catch (err) {
+            console.warn('Failed to load zone types:', err);
+        }
+
         // Initialiser la carte
         map = L.map('map').setView([45.5, 6.0], 10); // Alpes françaises
         window.map = map; // Expose pour la feuille "Mes périmètres"
@@ -282,11 +295,12 @@ const APP = (() => {
     }
 
     /**
-     * Obtenir la couleur d'une sévérité
+     * Obtenir la couleur d'une sévérité via zone types
      */
     function getColorBySeverity(severity) {
-        if (severity === 'ALERT_STANDARD') return '#d32f2f';
-        if (severity === 'NO_ALERT') return '#7cb342';
+        const state = AppState.getState();
+        const zoneType = state.zoneTypes?.find(t => t.code === severity);
+        if (zoneType) return zoneType.color;
         return '#999'; // Par défaut
     }
 
