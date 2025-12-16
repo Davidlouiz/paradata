@@ -64,12 +64,14 @@ def init_db():
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_by INTEGER,
             updated_at TIMESTAMP,
+            deleted_by INTEGER,
             deleted_at TIMESTAMP,
             locked_by INTEGER,
             lock_expires_at TIMESTAMP,
             FOREIGN KEY (zone_type_id) REFERENCES zone_types(id),
             FOREIGN KEY (created_by) REFERENCES users(id),
             FOREIGN KEY (updated_by) REFERENCES users(id),
+            FOREIGN KEY (deleted_by) REFERENCES users(id),
             FOREIGN KEY (locked_by) REFERENCES users(id)
         )
     """

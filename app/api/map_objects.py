@@ -719,14 +719,18 @@ async def delete_map_object(object_id: int, user: dict = Depends(require_login))
     cursor.execute(
         """
         UPDATE map_objects
-        SET deleted_at = ?, locked_by = NULL, lock_expires_at = NULL
+        SET deleted_at = ?, deleted_by = ?, locked_by = NULL, lock_expires_at = NULL
         WHERE id = ?
     """,
-        (datetime.now(timezone.utc).isoformat(), object_id),
+        (datetime.now(timezone.utc).isoformat(), user["id"], object_id),
     )
 
+    # Resolve severity code for audit snapshot (obj has zone_type_id)
+    cursor.execute("SELECT code FROM zone_types WHERE id = ?", (obj["zone_type_id"],))
+    zt_row = cursor.fetchone()
+    obj_severity_code = zt_row[0] if zt_row else None
     before_snapshot = _audit_snapshot(
-        obj["geometry"], obj["severity"], obj.get("description")
+        obj["geometry"], obj_severity_code, obj.get("description")
     )
 
     # Log audit
