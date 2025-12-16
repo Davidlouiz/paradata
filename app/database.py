@@ -37,8 +37,8 @@ def init_db():
     cursor.execute(
         """
         INSERT OR IGNORE INTO zone_types (code, name, color_hex) VALUES
-        ('NO_ALERT', 'Aucune alerte', '#7cb342'),
-        ('ALERT_STANDARD', 'Alerte standard', '#d32f2f')
+        ('DENSE_VEGETATION', 'Forte végétation', '#7cb342'),
+        ('REMOTE_AREA', 'Zone reculée', '#d32f2f')
         """
     )
 

@@ -604,9 +604,11 @@ async def update_map_object(
 
     # Get severity codes for audit (resolve IDs back to codes)
     cursor.execute("SELECT code FROM zone_types WHERE id = ?", (obj["zone_type_id"],))
-    old_severity_code = cursor.fetchone()[0] if cursor.fetchone() else None
+    old_row = cursor.fetchone()
+    old_severity_code = old_row[0] if old_row else None
     cursor.execute("SELECT code FROM zone_types WHERE id = ?", (new_zone_type_id,))
-    new_severity_code = cursor.fetchone()[0] if cursor.fetchone() else None
+    new_row = cursor.fetchone()
+    new_severity_code = new_row[0] if new_row else None
 
     before_snapshot = _audit_snapshot(
         obj["geometry"], old_severity_code, obj.get("description")
