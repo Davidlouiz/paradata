@@ -39,13 +39,13 @@ class MapObjectGeometry(BaseModel):
 
 class MapObjectCreate(BaseModel):
     geometry: dict  # GeoJSON geometry
-    severity: str  # NO_ALERT, ALERT_STANDARD
+    zone_type: str  # DENSE_VEGETATION, REMOTE_AREA
     description: Optional[str] = None
 
 
 class MapObjectUpdate(BaseModel):
     geometry: Optional[dict] = None
-    severity: Optional[str] = None
+    zone_type: Optional[str] = None
     description: Optional[str] = None
 
 
@@ -58,7 +58,7 @@ class MapObjectLock(BaseModel):
 class MapObjectResponse(BaseModel):
     id: int
     geometry: dict
-    severity: str
+    zone_type: str
     description: Optional[str]
     created_by: int
     created_by_username: Optional[str]

@@ -12,21 +12,21 @@ const UI = (() => {
         panel.style.display = visible ? 'flex' : 'none';
         if (shell) shell.style.display = visible ? 'flex' : 'none';
     }
-    /** Convert severity code to readable label */
-    function getSeverityLabel(severity) {
-        const found = zoneTypes.find(t => t.code === severity);
+    /** Convert zone_type code to readable label */
+    function getZoneTypeLabel(zone_type) {
+        const found = zoneTypes.find(t => t.code === zone_type);
         if (found) return found.name;
-        return severity || '—';
+        return zone_type || '—';
     }
 
     /** Inject zone types and refresh select options */
     function setZoneTypes(types) {
         zoneTypes = Array.isArray(types) ? [...types] : [];
-        populateSeverityOptions();
+        populateZoneTypeOptions();
     }
 
-    function populateSeverityOptions(selectedValue) {
-        const select = document.getElementById('form-severity');
+    function populateZoneTypeOptions(selectedValue) {
+        const select = document.getElementById('form-zone-type');
         if (!select) return;
         const targetValue = selectedValue !== undefined ? selectedValue : select.value;
         select.innerHTML = '';
@@ -40,6 +40,12 @@ const UI = (() => {
             return;
         }
 
+        // Ajouter une option vide par défaut
+        const emptyOpt = document.createElement('option');
+        emptyOpt.value = '';
+        emptyOpt.textContent = '-- Sélectionner un type --';
+        select.appendChild(emptyOpt);
+
         zoneTypes.forEach(t => {
             const opt = document.createElement('option');
             opt.value = t.code;
@@ -50,9 +56,7 @@ const UI = (() => {
         if (targetValue) {
             select.value = targetValue;
         }
-        if (!select.value && zoneTypes.length > 0) {
-            select.value = zoneTypes[0].code;
-        }
+        // Ne pas présélectionner automatiquement si aucune valeur n'est fournie
     }
 
     function showDrawerDetails(obj) {
@@ -66,8 +70,8 @@ const UI = (() => {
         const title = document.getElementById('drawer-title');
         if (title) title.textContent = `Zone #${obj?.id ?? ''}`;
 
-        const infoSeverity = document.getElementById('info-severity');
-        if (infoSeverity) infoSeverity.textContent = getSeverityLabel(obj?.severity);
+        const infoZoneType = document.getElementById('info-zone-type');
+        if (infoZoneType) infoZoneType.textContent = getZoneTypeLabel(obj?.zone_type);
 
         const infoDescription = document.getElementById('info-description');
         if (infoDescription) infoDescription.textContent = obj?.description || '(aucune description)';
@@ -146,10 +150,10 @@ const UI = (() => {
         const title = document.getElementById('drawer-title');
         if (title) title.textContent = obj ? `Modifier #${obj.id}` : 'Nouvelle zone';
 
-        const formSeverity = document.getElementById('form-severity');
-        if (formSeverity) {
-            populateSeverityOptions(obj?.severity || '');
-            formSeverity.value = obj?.severity || formSeverity.value;
+        const formZoneType = document.getElementById('form-zone-type');
+        if (formZoneType) {
+            populateZoneTypeOptions(obj?.zone_type || '');
+            formZoneType.value = obj?.zone_type || formZoneType.value;
         }
 
         const formDescription = document.getElementById('form-description');

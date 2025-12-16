@@ -213,12 +213,12 @@ const APP = (() => {
     }
 
     /**
-     * Obtenir la couleur d'une sévérité via zone types
+     * Obtenir la couleur d'une zone via zone types
      */
-    function getColorBySeverity(severity) {
+    function getColorByZoneType(zoneType) {
         const state = AppState.getState();
-        const zoneType = state.zoneTypes?.find(t => t.code === severity);
-        if (zoneType) return zoneType.color;
+        const zone = state.zoneTypes?.find(t => t.code === zoneType);
+        if (zone) return zone.color;
         return '#999'; // Par défaut
     }
 
@@ -339,9 +339,9 @@ const APP = (() => {
         const state = AppState.getState();
         const isSelected = obj.id === state.selectedObjectId;
         const isLocked = obj.locked_by;
-        const severity = obj.severity;
+        const zone_type = obj.zone_type;
 
-        const color = getColorBySeverity(severity);
+        const color = getColorByZoneType(zone_type);
 
         return {
             color: isSelected ? '#000' : color,
@@ -611,9 +611,9 @@ const APP = (() => {
         }
 
         // Écouter les changements de sévérité pour mettre à jour la couleur de la zone en édition
-        const formSeverity = document.getElementById('form-severity');
-        if (formSeverity) {
-            formSeverity.addEventListener('change', (e) => {
+        const formZoneType = document.getElementById('form-zone-type');
+        if (formZoneType) {
+            formZoneType.addEventListener('change', (e) => {
                 DRAW.updateEditingPolygonColor(e.target.value);
             });
         }
@@ -624,6 +624,7 @@ const APP = (() => {
                 const state = AppState.getState();
                 if (state.mode === 'VIEW') {
                     AppState.deselectObject();
+                    restyleAllLayers();
                     document.getElementById('drawer').classList.remove('open');
                 }
             }
@@ -778,7 +779,7 @@ const APP = (() => {
                 const layer = mapLayers[obj.id];
                 // Appliquer le style normal (sans sélection) avant de cacher
                 layer.setStyle({
-                    color: getColorBySeverity(obj.severity),
+                    color: getColorByZoneType(obj.zone_type),
                     weight: 2,
                     opacity: 0.8,
                     fillOpacity: 0.5,
@@ -793,9 +794,9 @@ const APP = (() => {
             UI.showSaveCancel();
 
             // Mettre à jour la couleur de la zone selon la sévérité du formulaire
-            const formSeverity = document.getElementById('form-severity');
-            if (formSeverity && formSeverity.value) {
-                DRAW.updateEditingPolygonColor(formSeverity.value);
+            const formZoneType = document.getElementById('form-zone-type');
+            if (formZoneType && formZoneType.value) {
+                DRAW.updateEditingPolygonColor(formZoneType.value);
             }
 
             // Ne pas afficher de badge/verrouillage visuel ni notification
@@ -826,11 +827,11 @@ const APP = (() => {
         // En mode EDIT, comparer les valeurs actuelles avec l'objet original
         if (state.mode === 'EDIT' && state.editingObject) {
             const original = state.editingObject;
-            const currentSeverity = document.getElementById('form-severity').value;
+            const currentZoneType = document.getElementById('form-zone-type').value;
             const currentDescription = document.getElementById('form-description').value;
 
             // Vérifier si la sévérité ou description a changé
-            if (original.severity !== currentSeverity || original.description !== currentDescription) {
+            if (original.zone_type !== currentZoneType || original.description !== currentDescription) {
                 return true;
             }
 
@@ -876,10 +877,10 @@ const APP = (() => {
         }
 
         // Lire les champs du formulaire
-        const severity = document.getElementById('form-severity').value;
+        const zone_type = document.getElementById('form-zone-type').value;
         const description = document.getElementById('form-description').value;
 
-        if (!severity) {
+        if (!zone_type) {
             UI.notify('Veuillez remplir tous les champs obligatoires', 'error');
             return;
         }
@@ -893,7 +894,7 @@ const APP = (() => {
                 // Créer une nouvelle zone
                 const res = await API.createMapObject({
                     geometry,
-                    severity,
+                    zone_type,
                     description,
                 });
                 await refreshQuotaPanel();
@@ -905,7 +906,7 @@ const APP = (() => {
                 // Mettre à jour une zone existante
                 const res = await API.updateMapObject(state.selectedObjectId, {
                     geometry,
-                    severity,
+                    zone_type,
                     description,
                 });
                 await refreshQuotaPanel();

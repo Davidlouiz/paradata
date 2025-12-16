@@ -156,18 +156,18 @@ def serialize_map_object(row: dict, conn=None) -> MapObjectResponse:
         lock_expires_at = row["lock_expires_at"]
 
     # Resolve zone_type_id to code for API compatibility
-    severity_code = None
+    zone_type_code = None
     if row.get("zone_type_id"):
         cursor.execute(
             "SELECT code FROM zone_types WHERE id = ?", (row["zone_type_id"],)
         )
         zt = cursor.fetchone()
-        severity_code = zt[0] if zt else None
+        zone_type_code = zt[0] if zt else None
 
     return MapObjectResponse(
         id=row["id"],
         geometry=json.loads(row["geometry"]),
-        severity=severity_code,
+        zone_type=zone_type_code,
         description=row["description"],
         created_by=row["created_by"],
         created_by_username=created_by_username,
@@ -185,7 +185,7 @@ def serialize_map_object(row: dict, conn=None) -> MapObjectResponse:
     )
 
 
-def _audit_snapshot(geometry_json: str, severity: str, description: str | None) -> str:
+def _audit_snapshot(geometry_json: str, zone_type: str, description: str | None) -> str:
     """Build a JSON snapshot for audit comparisons."""
     try:
         geometry = json.loads(geometry_json)
@@ -194,7 +194,7 @@ def _audit_snapshot(geometry_json: str, severity: str, description: str | None) 
     return json.dumps(
         {
             "geometry": geometry,
-            "severity": severity,
+            "zone_type": zone_type,
             "description": description,
         }
     )
@@ -365,7 +365,7 @@ async def create_map_object(req: MapObjectCreate, user: dict = Depends(require_l
         )
 
     conn = get_db()
-    zone_type_id = _get_zone_type_id(conn, req.severity)
+    zone_type_id = _get_zone_type_id(conn, req.zone_type)
 
     # Prevent overlapping zones
     if _geometry_intersects_existing(conn, req.geometry):
@@ -572,9 +572,9 @@ async def update_map_object(
     # Update object
     new_geometry = req.geometry if req.geometry else obj["geometry"]
 
-    # Resolve severity code to zone_type_id
-    if req.severity:
-        new_zone_type_id = _get_zone_type_id(conn, req.severity)
+    # Resolve zone_type code to zone_type_id
+    if req.zone_type:
+        new_zone_type_id = _get_zone_type_id(conn, req.zone_type)
     else:
         new_zone_type_id = obj["zone_type_id"]
 
@@ -602,18 +602,18 @@ async def update_map_object(
 
     geometry_json = json.dumps(new_geometry) if req.geometry else obj["geometry"]
 
-    # Get severity codes for audit (resolve IDs back to codes)
+    # Get zone_type codes for audit (resolve IDs back to codes)
     cursor.execute("SELECT code FROM zone_types WHERE id = ?", (obj["zone_type_id"],))
     old_row = cursor.fetchone()
-    old_severity_code = old_row[0] if old_row else None
+    old_zone_type_code = old_row[0] if old_row else None
     cursor.execute("SELECT code FROM zone_types WHERE id = ?", (new_zone_type_id,))
     new_row = cursor.fetchone()
-    new_severity_code = new_row[0] if new_row else None
+    new_zone_type_code = new_row[0] if new_row else None
 
     before_snapshot = _audit_snapshot(
-        obj["geometry"], old_severity_code, obj.get("description")
+        obj["geometry"], old_zone_type_code, obj.get("description")
     )
-    after_snapshot = _audit_snapshot(geometry_json, new_severity_code, new_description)
+    after_snapshot = _audit_snapshot(geometry_json, new_zone_type_code, new_description)
 
     is_rollback = _is_update_rollback(conn, object_id, user["id"], after_snapshot)
     is_update_grace = _is_within_creation_grace(obj, user["id"], GRACE_UPDATE_MINUTES)
@@ -725,12 +725,12 @@ async def delete_map_object(object_id: int, user: dict = Depends(require_login))
         (datetime.now(timezone.utc).isoformat(), user["id"], object_id),
     )
 
-    # Resolve severity code for audit snapshot (obj has zone_type_id)
+    # Resolve zone_type code for audit snapshot (obj has zone_type_id)
     cursor.execute("SELECT code FROM zone_types WHERE id = ?", (obj["zone_type_id"],))
     zt_row = cursor.fetchone()
-    obj_severity_code = zt_row[0] if zt_row else None
+    obj_zone_type_code = zt_row[0] if zt_row else None
     before_snapshot = _audit_snapshot(
-        obj["geometry"], obj_severity_code, obj.get("description")
+        obj["geometry"], obj_zone_type_code, obj.get("description")
     )
 
     # Log audit

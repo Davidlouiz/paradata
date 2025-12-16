@@ -5,7 +5,7 @@
 - Run dev server: `uvicorn app.main:socket_app --reload` (use `socket_app` so WebSockets work); root serves the SPA, `/assets` serves static.
 - DB: `init_db()` creates `users`, `map_objects`, `audit_log`; soft-delete via `deleted_at`; foreign keys on; stored at `alerte_parapente.db`.
 - Auth: JWT HS256 30-day tokens stored in `localStorage['token']`, attached as `Authorization: Bearer ...`; bcrypt password hashes; all auth helpers in [app/api/auth.py](app/api/auth.py).
-- API shape: responses are `{success, data, error?}`; expect Polygon/MultiPolygon GeoJSON; severity enum currently `NO_ALERT`/`ALERT_STANDARD` (see [static/js/ui.js](static/js/ui.js)).
+- API shape: responses are `{success, data, error?}`; expect Polygon/MultiPolygon GeoJSON; zone_type codes `DENSE_VEGETATION`/`REMOTE_AREA` (see [static/js/ui.js](static/js/ui.js)).
 - Quotas: daily limits 15 CREATE / 5 UPDATE / 5 DELETE (constants in [app/services/quota.py](app/services/quota.py)); GRACE_DELETE restores one CREATE and does not count toward DELETE; check with `check_daily_quota` and return `remaining_quota` on writes.
 - Locks: 15-minute lock via `POST /map-objects/{id}/checkout`; PUT requires matching `locked_by`; PUT auto-clears lock; manual release via `POST /map-objects/{id}/release`; expired lock yields 409; lock info exposed at `GET /map-objects/{id}/lock`.
 - Geometry rules: Shapely validation; only Polygon/MultiPolygon; intersection guard erodes both geometries by ~10cm and blocks overlaps above tiny epsilon (see `_geometry_intersects_existing` in [app/api/map_objects.py](app/api/map_objects.py)).
@@ -15,7 +15,7 @@
 - Frontend networking: `API` wrapper in [static/js/api.js](static/js/api.js) uses `window.location.origin`, sets token header, returns parsed JSON or throws `{status,message,data}`.
 - Frontend realtime: `SOCKET` loader in [static/js/socket.js](static/js/socket.js) dynamically loads client lib, auto-authenticates with `auth_user`, and falls back to map polling if disconnected.
 - UI patterns: drawer shows details or edit form; quota panel fed by `/auth/quota`.
-- Map objects flow: select → checkout → edit geometry/severity/description copy → PUT update → lock released and broadcast; deletions are soft and broadcast.
+- Map objects flow: select → checkout → edit geometry/zone_type/description copy → PUT update → lock released and broadcast; deletions are soft and broadcast.
 - Volunteers: fonctionnalités de périmètres supprimées; aucun endpoint `/volunteers`.
 - Debug tips: middleware logs 4xx/5xx in [app/main.py](app/main.py); inspect locks with `sqlite3 alerte_parapente.db "SELECT id, locked_by, lock_expires_at FROM map_objects;"`; quotas visible via `/auth/quota`.
 - Build/install: `python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt`; static assets already served by FastAPI.

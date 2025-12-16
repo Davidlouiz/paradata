@@ -14,10 +14,10 @@ const DRAW = (() => {
     let isGeomanReady = false;
     let pendingCreateHoverListener = null;
 
-    function getColorBySeverity(severity) {
+    function getColorByZoneType(zone_type) {
         const state = AppState.getState();
-        const zoneType = state.zoneTypes?.find(t => t.code === severity);
-        if (zoneType) return zoneType.color;
+        const zone = state.zoneTypes?.find(t => t.code === zone_type);
+        if (zone) return zone.color;
         return '#666';
     }
 
@@ -80,12 +80,12 @@ const DRAW = (() => {
                 AppState.setDrawnGeometry(layer.toGeoJSON().geometry);
                 UI.updateDrawStatus('Zone dessinée. Complétez le formulaire et enregistrez.');
 
-                // Déterminer la couleur selon la sévérité sélectionnée dans le formulaire
-                const formSeverity = document.getElementById('form-severity');
-                const selectedSeverity = formSeverity ? formSeverity.value : '';
+                // Déterminer la couleur selon la zone sélectionnée dans le formulaire
+                const formZoneType = document.getElementById('form-zone-type');
+                const selectedZoneType = formZoneType ? formZoneType.value : '';
 
                 // Appliquer le style avec la bonne couleur
-                updateEditingPolygonColor(selectedSeverity);
+                updateEditingPolygonColor(selectedZoneType);
 
                 // Activer l'édition pour permettre les modifications
                 layer.pm.enable({
@@ -185,10 +185,10 @@ const DRAW = (() => {
                 map.pm.enableDraw('Polygon', {
                     snappingOrder: ['marker', 'poly'],
                     templineStyle: {
-                        color: 'red',
+                        color: '#555',
                     },
                     hintlineStyle: {
-                        color: 'red',
+                        color: '#555',
                         dashArray: [5, 5],
                     },
                 });
@@ -235,7 +235,7 @@ const DRAW = (() => {
         };
 
         // Ajouter le polygone à la map
-        const baseColor = getColorBySeverity(mapObject.severity);
+        const baseColor = getColorByZoneType(mapObject.zone_type);
         const layer = L.geoJSON(geoJsonFeature, {
             style: {
                 color: baseColor,
@@ -299,14 +299,14 @@ const DRAW = (() => {
     }
 
     /**
-     * Mettre à jour la couleur du polygone en édition/création selon la sévérité
+     * Mettre à jour la couleur du polygone en édition/création selon la zone
      */
-    function updateEditingPolygonColor(severity) {
+    function updateEditingPolygonColor(zone_type) {
         if (!currentDrawnLayer) return;
         if (currentMode !== 'EDIT' && currentMode !== 'CREATE') return;
 
-        // Déterminer la couleur via getColorBySeverity (zone types dynamiques)
-        const color = getColorBySeverity(severity);
+        // Déterminer la couleur via getColorByZoneType (zone types dynamiques)
+        const color = getColorByZoneType(zone_type);
 
         // Stocker la couleur désirée ET appliquer le style
         currentDrawnLayer._desiredColor = color;
