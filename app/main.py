@@ -120,22 +120,6 @@ async def root():
     return {"message": "Alerte Parapente API - static files not found"}
 
 
-@app.get("/health")
-async def health():
-    """Health check endpoint."""
-    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
-
-
-@app.post("/debug-echo")
-async def debug_echo(request: Request):
-    """Temporary debug endpoint that echoes JSON body."""
-    try:
-        data = await request.json()
-    except Exception:
-        data = None
-    return {"ok": True, "body": data}
-
-
 if __name__ == "__main__":
     import uvicorn
 
