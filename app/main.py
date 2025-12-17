@@ -17,8 +17,8 @@ init_db()
 
 # Create FastAPI app
 app = FastAPI(
-    title="Alerte Parapente API",
-    description="Collaborative hazard alert map editor",
+    title="Zones Parapente",
+    description="Carte collaborative des zones sensibles pour le parapente, améliorée chaque jour par la communauté des pilotes.",
     version="0.1.0",
 )
 
