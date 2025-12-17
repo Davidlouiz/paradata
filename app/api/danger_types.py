@@ -8,8 +8,10 @@ router = APIRouter(prefix="/zone-types", tags=["zone-types"])
 
 @router.get("")
 def get_zone_types(db=Depends(get_db)):
-    """Lister les types de zones disponibles (code/nom/couleur)."""
-    cursor = db.execute("SELECT code, name, color_hex FROM zone_types ORDER BY name")
+    """Lister les types de zones disponibles (code/nom/couleur/description)."""
+    cursor = db.execute(
+        "SELECT code, name, description, color_hex FROM zone_types ORDER BY name"
+    )
     types = cursor.fetchall()
 
     result = []
@@ -18,6 +20,7 @@ def get_zone_types(db=Depends(get_db)):
             {
                 "code": row["code"],
                 "name": row["name"],
+                "description": row["description"],
                 "color": row["color_hex"],
             }
         )

@@ -615,6 +615,9 @@ const APP = (() => {
         if (formZoneType) {
             formZoneType.addEventListener('change', (e) => {
                 DRAW.updateEditingPolygonColor(e.target.value);
+                if (typeof UI !== 'undefined' && typeof UI.updateZoneTypeDescription === 'function') {
+                    UI.updateZoneTypeDescription(e.target.value);
+                }
             });
         }
 

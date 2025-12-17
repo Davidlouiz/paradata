@@ -27,18 +27,51 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             code TEXT UNIQUE NOT NULL,
             name TEXT NOT NULL,
+            description TEXT,
             color_hex TEXT NOT NULL,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         """
     )
 
+    # Backfill column for existing databases lacking description
+    cursor.execute("PRAGMA table_info(zone_types)")
+    zone_type_columns = [row[1] for row in cursor.fetchall()]
+    if "description" not in zone_type_columns:
+        cursor.execute("ALTER TABLE zone_types ADD COLUMN description TEXT")
+
+    # Backfill descriptions for existing rows (overwrite to ensure wording is current)
+    cursor.execute(
+        """
+        UPDATE zone_types
+        SET description = 'Zone où la végétation rend difficile l''extraction en cas de posé involontaire.'
+        WHERE code = 'DENSE_VEGETATION'
+        """
+    )
+    cursor.execute(
+        """
+        UPDATE zone_types
+        SET description = 'Zone reculée où une disparition peut passer inaperçue et retarder l''arrivée des secours.'
+        WHERE code = 'REMOTE_AREA'
+        """
+    )
+
     # Seed default zone types if missing
     cursor.execute(
         """
-        INSERT OR IGNORE INTO zone_types (code, name, color_hex) VALUES
-        ('DENSE_VEGETATION', 'Forte végétation', '#7cb342'),
-        ('REMOTE_AREA', 'Zone reculée', '#d32f2f')
+        INSERT OR IGNORE INTO zone_types (code, name, description, color_hex) VALUES
+        (
+            'DENSE_VEGETATION',
+            'Forte végétation',
+            'Zone où la végétation rend difficile l''extraction en cas de posé involontaire.',
+            '#7cb342'
+        ),
+        (
+            'REMOTE_AREA',
+            'Zone reculée',
+            'Zone reculée où une disparition peut passer inaperçue et retarder l''arrivée des secours.',
+            '#d32f2f'
+        )
         """
     )
 

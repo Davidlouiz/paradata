@@ -19,10 +19,17 @@ const UI = (() => {
         return zone_type || '—';
     }
 
+    /** Get zone type description (if available) */
+    function getZoneTypeDescription(zone_type) {
+        const found = zoneTypes.find(t => t.code === zone_type);
+        return found?.description || '';
+    }
+
     /** Inject zone types and refresh select options */
     function setZoneTypes(types) {
         zoneTypes = Array.isArray(types) ? [...types] : [];
         populateZoneTypeOptions();
+        updateZoneTypeDescription(document.getElementById('form-zone-type')?.value);
     }
 
     function populateZoneTypeOptions(selectedValue) {
@@ -154,6 +161,7 @@ const UI = (() => {
         if (formZoneType) {
             populateZoneTypeOptions(obj?.zone_type || '');
             formZoneType.value = obj?.zone_type || formZoneType.value;
+            updateZoneTypeDescription(formZoneType.value);
         }
 
         const formDescription = document.getElementById('form-description');
@@ -456,6 +464,18 @@ const UI = (() => {
         }
     }
 
+    function updateZoneTypeDescription(selectedCode) {
+        const descEl = document.getElementById('form-zone-type-desc');
+        if (!descEl) return;
+        const desc = selectedCode ? getZoneTypeDescription(selectedCode) : '';
+        const label = selectedCode ? getZoneTypeLabel(selectedCode) : '';
+        if (desc) {
+            descEl.textContent = `${label} : ${desc}`;
+        } else {
+            descEl.textContent = 'Sélectionnez un type pour voir sa description.';
+        }
+    }
+
     return {
         showDrawerDetails,
         showDrawerForm,
@@ -476,6 +496,7 @@ const UI = (() => {
         hideLoginModal,
         showAuthMessage,
         updateCharCount,
+        updateZoneTypeDescription,
 
     };
 })();
