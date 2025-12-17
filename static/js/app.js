@@ -31,12 +31,60 @@ const APP = (() => {
         }
 
         // Initialiser la carte
-        map = L.map('map').setView([45.5, 6.0], 10); // Alpes françaises
+        map = L.map('map');
+
+        // Lecture éventuelle de la vue depuis l'URL (format: #map=zoom/lat/lng)
+        const parseViewFromURL = () => {
+            try {
+                const h = window.location.hash || '';
+                const m = h.match(/#map=(\d{1,2})\/(-?\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?)/);
+                if (!m) return null;
+                let zoom = parseInt(m[1], 10);
+                let lat = parseFloat(m[2]);
+                let lng = parseFloat(m[3]);
+                // Clamp raisonnable
+                if (!Number.isFinite(zoom)) zoom = 10;
+                if (!Number.isFinite(lat)) lat = 45.5;
+                if (!Number.isFinite(lng)) lng = 6.0;
+                zoom = Math.max(1, Math.min(19, zoom));
+                lat = Math.max(-90, Math.min(90, lat));
+                lng = Math.max(-180, Math.min(180, lng));
+                return { zoom, lat, lng };
+            } catch (_) {
+                return null;
+            }
+        };
+
+        const defaultCenter = [45.5, 6.0]; // Alpes françaises
+        const defaultZoom = 10;
+        const initialView = parseViewFromURL();
+        if (initialView) {
+            map.setView([initialView.lat, initialView.lng], initialView.zoom);
+        } else {
+            map.setView(defaultCenter, defaultZoom);
+        }
         window.map = map; // Expose pour la feuille "Mes périmètres"
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap',
             maxZoom: 19,
         }).addTo(map);
+
+        // Mettre à jour l'URL quand la vue change
+        const updateURLFromMapView = () => {
+            try {
+                const center = map.getCenter();
+                const zoom = map.getZoom();
+                const hash = `#map=${zoom}/${center.lat.toFixed(5)}/${center.lng.toFixed(5)}`;
+                const url = `${window.location.origin}${window.location.pathname}${window.location.search}${hash}`;
+                window.history.replaceState(null, '', url);
+            } catch (_) { /* silent */ }
+        };
+        map.on('moveend', updateURLFromMapView);
+        map.on('zoomend', updateURLFromMapView);
+        // Écrire l'état initial dans l'URL si absent
+        if (!initialView) {
+            updateURLFromMapView();
+        }
 
         // Add map scale (metric only, bottom-right)
         try {
