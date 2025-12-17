@@ -153,7 +153,6 @@ const AppState = (() => {
         state.selectedObject = object;
         state.selectedObjectId = object.id;
         setEditMode();
-        startLockTimer();
     }
 
     /**
@@ -220,32 +219,6 @@ const AppState = (() => {
         if (state.lockStatus?.locked_by) {
             state.lockTimerId = setTimeout(refreshLockStatus, 5000);
         }
-    }
-
-    /**
-     * Démarrer un timer de rafraîchissement du verrou pendant l'édition
-     */
-    function startLockTimer() {
-        // Rafraîchir toutes les 5 secondes
-        state.lockTimerId = setInterval(() => {
-            if (!state.selectedObjectId) return;
-
-            API.getLockStatus(state.selectedObjectId)
-                .then(res => {
-                    if (res.success) {
-                        const oldLock = state.lockStatus;
-                        state.lockStatus = {
-                            locked_by: res.data.locked_by,
-                            lock_expires_at: res.data.lock_expires_at,
-                        };
-                        // Notifier uniquement si changement
-                        if (oldLock?.locked_by !== state.lockStatus?.locked_by) {
-                            notify();
-                        }
-                    }
-                })
-                .catch(e => console.warn('Error refreshing lock:', e));
-        }, 5000);
     }
 
     /**
