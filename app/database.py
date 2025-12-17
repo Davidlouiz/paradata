@@ -51,7 +51,7 @@ def init_db():
     cursor.execute(
         """
         UPDATE zone_types
-        SET description = 'Zone reculée où une disparition peut passer inaperçue et retarder l''arrivée des secours.'
+        SET description = 'Zone où une disparition peut passer inaperçue et retarder l''arrivée des secours.'
         WHERE code = 'REMOTE_AREA'
         """
     )
@@ -69,7 +69,7 @@ def init_db():
         (
             'REMOTE_AREA',
             'Zone reculée',
-            'Zone reculée où une disparition peut passer inaperçue et retarder l''arrivée des secours.',
+            'Zone où une disparition peut passer inaperçue et retarder l''arrivée des secours.',
             '#d32f2f'
         )
         """
