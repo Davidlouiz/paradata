@@ -39,11 +39,12 @@ router = APIRouter(prefix="/zones", tags=["zones"])
 
 
 def _geometry_intersects_existing(
-    conn, new_geom_json: dict, exclude_id: int | None = None
+    conn, new_geom_json: dict, new_zone_type_id: int, exclude_id: int | None = None
 ) -> bool:
-    """Retourne True si la nouvelle géométrie intersecte une géométrie existante non supprimée.
+    """Retourne True si la nouvelle géométrie intersecte une géométrie existante du même type non supprimée.
 
     Erodes both geometries by ~10cm (0.00001°) to tolerate boundary contacts.
+    Zones of different types can overlap; only zones of the same type cannot.
     """
     AREA_EPSILON = 1e-10  # tolerate tiny numeric overlaps
     BUFFER_DISTANCE = 0.00001  # ~10cm buffer for boundary tolerance
@@ -60,7 +61,7 @@ def _geometry_intersects_existing(
     cursor = conn.cursor()
     cursor.execute(
         """
-        SELECT id, geometry
+        SELECT id, geometry, zone_type_id
         FROM zones
         WHERE deleted_at IS NULL
         """
@@ -69,6 +70,10 @@ def _geometry_intersects_existing(
     for row in rows:
         row_id = row[0]
         if exclude_id and row_id == exclude_id:
+            continue
+        existing_zone_type_id = row[2]
+        # Only check overlap for zones of the same type
+        if existing_zone_type_id != new_zone_type_id:
             continue
         try:
             existing = shape(json.loads(row[1]))
@@ -368,12 +373,12 @@ async def create_zone(req: ZoneCreate, user: dict = Depends(require_login)):
     conn = get_db()
     zone_type_id = _get_zone_type_id(conn, req.zone_type)
 
-    # Prevent overlapping zones
-    if _geometry_intersects_existing(conn, req.geometry):
+    # Prevent overlapping zones of the same type
+    if _geometry_intersects_existing(conn, req.geometry, zone_type_id):
         conn.close()
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="La zone chevauche une zone existante",
+            detail="La zone chevauche une zone existante du même type",
         )
     cursor = conn.cursor()
 
@@ -593,12 +598,14 @@ async def update_zone(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Invalid geometry",
             )
-        # Prevent overlapping zones excluding self
-        if _geometry_intersects_existing(conn, req.geometry, exclude_id=object_id):
+        # Prevent overlapping zones of the same type, excluding self
+        if _geometry_intersects_existing(
+            conn, req.geometry, new_zone_type_id, exclude_id=object_id
+        ):
             conn.close()
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="La zone chevauche une zone existante",
+                detail="La zone chevauche une zone existante du même type",
             )
 
     geometry_json = json.dumps(new_geometry) if req.geometry else obj["geometry"]
