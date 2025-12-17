@@ -8,6 +8,8 @@ const APP = (() => {
     let zoneLayers = {}; // id -> Leaflet layer
     let stateUnsubscribe = null;
     let pollingIntervalId = null;
+    let lastHitZoneIds = [];
+    let lastHitIndex = -1;
 
     /**
      * Initialiser l'application
@@ -300,9 +302,6 @@ const APP = (() => {
         try {
             const layer = L.geoJSON(obj.geometry, {
                 style: () => getPolygonStyle(obj),
-                onEachFeature: (feature, layer) => {
-                    layer.on('click', () => selectZone(obj, layer));
-                },
             });
 
             layer.addTo(map);
@@ -363,15 +362,169 @@ const APP = (() => {
         });
     }
 
+    function ringContainsPoint(ring, point) {
+        if (!Array.isArray(ring) || ring.length < 3) return false;
+        const [x, y] = point;
+        let inside = false;
+
+        for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+            const xi = ring[i][0];
+            const yi = ring[i][1];
+            const xj = ring[j][0];
+            const yj = ring[j][1];
+            const intersects = ((yi > y) !== (yj > y))
+                && (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi);
+            if (intersects) inside = !inside;
+        }
+
+        return inside;
+    }
+
+    function polygonContainsPoint(rings, point) {
+        if (!Array.isArray(rings) || rings.length === 0) return false;
+        if (!ringContainsPoint(rings[0], point)) return false;
+
+        for (let i = 1; i < rings.length; i += 1) {
+            if (ringContainsPoint(rings[i], point)) return false; // Dans un trou
+        }
+
+        return true;
+    }
+
+    function geometryContainsPoint(geometry, latlng) {
+        if (!geometry || !latlng) return false;
+        const point = [latlng.lng, latlng.lat];
+
+        if (geometry.type === 'Polygon') {
+            return polygonContainsPoint(geometry.coordinates, point);
+        }
+
+        if (geometry.type === 'MultiPolygon') {
+            return geometry.coordinates.some(poly => polygonContainsPoint(poly, point));
+        }
+
+        return false;
+    }
+
+    function computeRingArea(ring) {
+        if (!Array.isArray(ring) || ring.length < 3) return 0;
+        let area = 0;
+        for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+            const xi = ring[i][0];
+            const yi = ring[i][1];
+            const xj = ring[j][0];
+            const yj = ring[j][1];
+            area += (xj * yi) - (xi * yj);
+        }
+        return Math.abs(area) / 2;
+    }
+
+    function computePolygonArea(rings) {
+        if (!Array.isArray(rings) || rings.length === 0) return 0;
+        const outer = computeRingArea(rings[0]);
+        const holes = rings.slice(1).reduce((sum, ring) => sum + computeRingArea(ring), 0);
+        return Math.max(0, outer - holes);
+    }
+
+    function computeGeometryArea(geometry) {
+        if (!geometry) return 0;
+        if (geometry.type === 'Polygon') {
+            return computePolygonArea(geometry.coordinates);
+        }
+        if (geometry.type === 'MultiPolygon') {
+            return geometry.coordinates.reduce((sum, poly) => sum + computePolygonArea(poly), 0);
+        }
+        return 0;
+    }
+
+    function getZonesAtPoint(latlng) {
+        const hits = [];
+        Object.values(zoneLayers).forEach((layer) => {
+            const obj = layer?.objData;
+            if (!obj?.geometry) return;
+            if (geometryContainsPoint(obj.geometry, latlng)) {
+                hits.push({ obj, area: computeGeometryArea(obj.geometry) });
+            }
+        });
+
+        return hits
+            .sort((a, b) => {
+                if (a.area === b.area) {
+                    return Number(a.obj.id) - Number(b.obj.id);
+                }
+                return a.area - b.area;
+            })
+            .map(item => item.obj);
+    }
+
+    function areSameZoneList(idsA, idsB) {
+        if (!Array.isArray(idsA) || !Array.isArray(idsB)) return false;
+        if (idsA.length !== idsB.length) return false;
+        for (let i = 0; i < idsA.length; i += 1) {
+            if (idsA[i] !== idsB[i]) return false;
+        }
+        return true;
+    }
+
+    function resetAmbiguityCycle() {
+        lastHitZoneIds = [];
+        lastHitIndex = -1;
+    }
+
+    function pickZoneFromCycle(zones) {
+        const currentIds = zones.map(z => z.id);
+        const sameList = areSameZoneList(currentIds, lastHitZoneIds);
+
+        if (!sameList) {
+            lastHitZoneIds = currentIds;
+            lastHitIndex = 0;
+            return zones[0];
+        }
+
+        lastHitIndex = (lastHitIndex + 1) % zones.length;
+        return zones[lastHitIndex];
+    }
+
+    async function handleMapClick(e) {
+        if (!e?.latlng) return;
+        const state = AppState.getState();
+
+        if (state.mode === 'DRAW') {
+            return; // Ne pas interrompre le dessin
+        }
+
+        const zonesAtPoint = getZonesAtPoint(e.latlng);
+
+        if (zonesAtPoint.length === 0) {
+            resetAmbiguityCycle();
+            if (state.mode === 'VIEW') {
+                AppState.deselectObject();
+                restyleAllLayers();
+                document.getElementById('drawer')?.classList.remove('open');
+            }
+            return;
+        }
+
+        const targetZone = pickZoneFromCycle(zonesAtPoint);
+        const targetLayer = zoneLayers[targetZone.id];
+        selectZone(targetZone, targetLayer);
+    }
+
     /**
     * Sélectionner une zone
      */
     function selectZone(obj, layer) {
         const state = AppState.getState();
 
+        const resolvedLayer = layer || zoneLayers[obj.id];
+
         // Ignorer les clics pendant le dessin d'une nouvelle zone
         if (state.mode === 'DRAW') {
             return;
+        }
+
+        if (state.mode === 'EDIT' && state.selectedObjectId === obj.id) {
+            return; // Déjà en édition de cette zone
         }
 
         // Si on est en EDIT et qu'on clique une autre zone, basculer l'édition
@@ -409,7 +562,7 @@ const APP = (() => {
             // Afficher les détails seulement si non authentifié ou déjà en EDIT
             UI.showDrawerDetails(obj);
             // Appliquer le style du nouveau sélectionné seulement si on ne va pas en EDIT
-            layer.setStyle(getPolygonStyle(obj));
+            resolvedLayer?.setStyle(getPolygonStyle(obj));
         }
     }
 
@@ -621,16 +774,9 @@ const APP = (() => {
             });
         }
 
-        // Fermer le drawer en cliquant sur le fond de la carte
-        map.on('click', (e) => {
-            if (e.originalEvent.target.id === 'map') {
-                const state = AppState.getState();
-                if (state.mode === 'VIEW') {
-                    AppState.deselectObject();
-                    restyleAllLayers();
-                    document.getElementById('drawer').classList.remove('open');
-                }
-            }
+        // Sélection/cycle des zones en cliquant sur la carte
+        map.on('click', async (e) => {
+            await handleMapClick(e);
         });
 
         // Échap pour annuler dessin/édition
