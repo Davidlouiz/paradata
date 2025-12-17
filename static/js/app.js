@@ -719,6 +719,15 @@ const APP = (() => {
             if (panel) panel.style.display = allowed ? 'flex' : 'none';
             if (shell) shell.style.display = allowed ? 'flex' : 'none';
         }
+
+        // Afficher/masquer le lien de gestion des types de zone
+        const zoneTypesLink = document.getElementById('zone-types-manage-link');
+        const zoneTypesModal = document.getElementById('zone-types-modal');
+        const isZoneTypesModalOpen = zoneTypesModal && zoneTypesModal.style.display === 'flex';
+        const showLink = (quotaHoldActive || isZoneTypesModalOpen) && isAuth;
+        if (zoneTypesLink) {
+            zoneTypesLink.style.visibility = showLink ? 'visible' : 'hidden';
+        }
     }
 
     /**

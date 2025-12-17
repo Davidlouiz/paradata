@@ -127,6 +127,7 @@
                 <div class="form-group">
                     <div class="form-label-row">
                         <label for="form-zone-type">Type de zone :</label>
+                        <a id="zone-types-manage-link" href="#" class="manage-link">Gérer les types de zone</a>
                     </div>
                     <select id="form-zone-type" required>
                         <option value="">-- Chargement des types --</option>
@@ -225,6 +226,21 @@
             <div class="tabs">
                 <button class="btn btn-danger" id="btn-confirm-yes">Oui</button>
                 <button class="btn btn-secondary" id="btn-confirm-no">Annuler</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Zone Types Management Modal -->
+    <div id="zone-types-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <button class="btn-close" id="zone-types-modal-close">&times;</button>
+            <div class="modal-header">
+                <h3 class="modal-title">Gestion des types de zone</h3>
+            </div>
+            <div class="modal-body">
+                <div id="zone-types-list">
+                    <!-- Zone types will be populated here -->
+                </div>
             </div>
         </div>
     </div>

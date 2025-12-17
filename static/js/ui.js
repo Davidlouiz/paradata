@@ -325,6 +325,40 @@ const UI = (() => {
         }
     }
 
+    // Initialize zone types modal handlers
+    {
+        const link = document.getElementById('zone-types-manage-link');
+        const modal = document.getElementById('zone-types-modal');
+        const modalClose = document.getElementById('zone-types-modal-close');
+        if (link && modal) {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                showZoneTypesModal();
+            });
+            if (modalClose) {
+                modalClose.addEventListener('click', () => {
+                    hideZoneTypesModal();
+                });
+            }
+            // Close modal when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!modal || modal.style.display !== 'flex') return;
+                const content = modal.querySelector('.modal-content');
+                const within = content.contains(e.target) || link.contains(e.target);
+                if (!within) {
+                    hideZoneTypesModal();
+                }
+            });
+            // Close with Escape
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && modal && modal.style.display === 'flex') {
+                    hideZoneTypesModal();
+                }
+            });
+        }
+    }
+
     function notify(msg, type = 'info', duration = 3000) {
         const notif = document.getElementById('notification');
         if (!notif) return;
@@ -476,6 +510,47 @@ const UI = (() => {
         }
     }
 
+    function setZoneTypesManageLinkVisible(visible) {
+        const link = document.getElementById('zone-types-manage-link');
+        if (link) {
+            link.style.visibility = visible ? 'visible' : 'hidden';
+        }
+    }
+
+    function showZoneTypesModal() {
+        const modal = document.getElementById('zone-types-modal');
+        const listEl = document.getElementById('zone-types-list');
+        if (!modal || !listEl) return;
+
+        // Build HTML for zone types
+        let html = '';
+        if (zoneTypes && zoneTypes.length > 0) {
+            html = '<div class="zone-types-list">';
+            zoneTypes.forEach(zt => {
+                html += `
+                    <div class="zone-type-item">
+                        <div class="zone-type-code"><strong>${zt.code}</strong></div>
+                        <div class="zone-type-name">${zt.name}</div>
+                        <div class="zone-type-desc">${zt.description || '(pas de description)'}</div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+        } else {
+            html = '<p>Aucun type de zone disponible.</p>';
+        }
+
+        listEl.innerHTML = html;
+        modal.style.display = 'flex';
+    }
+
+    function hideZoneTypesModal() {
+        const modal = document.getElementById('zone-types-modal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
+
     return {
         showDrawerDetails,
         showDrawerForm,
@@ -497,6 +572,9 @@ const UI = (() => {
         showAuthMessage,
         updateCharCount,
         updateZoneTypeDescription,
+        setZoneTypesManageLinkVisible,
+        showZoneTypesModal,
+        hideZoneTypesModal,
 
     };
 })();
