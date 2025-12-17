@@ -6,11 +6,11 @@ from shapely.geometry import shape
 
 from app.database import get_db, dict_from_row
 from app.models import (
-    MapObjectCreate,
-    MapObjectUpdate,
-    MapObjectResponse,
-    MapObjectsListResponse,
-    SingleMapObjectResponse,
+    ZoneCreate,
+    ZoneUpdate,
+    ZoneResponse,
+    ZonesListResponse,
+    SingleZoneResponse,
     CheckoutResponse,
     BoundingBox,
 )
@@ -35,7 +35,7 @@ def set_sio(socket_server):
     sio = socket_server
 
 
-router = APIRouter()
+router = APIRouter(prefix="/zones", tags=["zones"])
 
 
 def _geometry_intersects_existing(
@@ -61,7 +61,7 @@ def _geometry_intersects_existing(
     cursor.execute(
         """
         SELECT id, geometry
-        FROM map_objects
+        FROM zones
         WHERE deleted_at IS NULL
         """
     )
@@ -127,8 +127,8 @@ def _get_zone_type_id(conn, code: str) -> int:
     return row[0]
 
 
-def serialize_map_object(row: dict, conn=None) -> MapObjectResponse:
-    """Convert database row to MapObjectResponse."""
+def serialize_zone(row: dict, conn=None) -> ZoneResponse:
+    """Convert database row to ZoneResponse."""
     if not row:
         return None
 
@@ -164,7 +164,7 @@ def serialize_map_object(row: dict, conn=None) -> MapObjectResponse:
         zt = cursor.fetchone()
         zone_type_code = zt[0] if zt else None
 
-    return MapObjectResponse(
+    return ZoneResponse(
         id=row["id"],
         geometry=json.loads(row["geometry"]),
         zone_type=zone_type_code,
@@ -296,41 +296,42 @@ def _is_update_chain_by_sequence(conn, object_id: int, user_id: int) -> bool:
     )
 
 
-@router.get("", response_model=MapObjectsListResponse)
-async def list_map_objects(
+@router.get("", response_model=ZonesListResponse)
+async def list_zones(
     minLat: float = Query(...),
     minLng: float = Query(...),
     maxLat: float = Query(...),
     maxLng: float = Query(...),
 ):
-    """Get visible map objects in bbox (public endpoint)."""
+    """Get visible zones in bbox (public endpoint)."""
     conn = get_db()
     cursor = conn.cursor()
 
     # Get all non-deleted objects (simplified: ignore bbox for now)
     cursor.execute("""
-        SELECT * FROM map_objects
+        SELECT * FROM zones
         WHERE deleted_at IS NULL
         ORDER BY created_at DESC
     """)
 
     rows = cursor.fetchall()
+
+    zones = [serialize_zone(dict_from_row(row), conn) for row in rows]
+
     conn.close()
 
-    objects = [serialize_map_object(dict_from_row(row)) for row in rows]
-
-    return MapObjectsListResponse(success=True, data=objects)
+    return ZonesListResponse(success=True, data=zones)
 
 
-@router.get("/{object_id}", response_model=SingleMapObjectResponse)
-async def get_map_object(object_id: int):
-    """Get single map object by ID (public endpoint)."""
+@router.get("/{object_id}", response_model=SingleZoneResponse)
+async def get_zone(object_id: int):
+    """Get single zone by ID (public endpoint)."""
     conn = get_db()
     cursor = conn.cursor()
 
     cursor.execute(
         """
-        SELECT * FROM map_objects
+        SELECT * FROM zones
         WHERE id = ? AND deleted_at IS NULL
     """,
         (object_id,),
@@ -344,12 +345,12 @@ async def get_map_object(object_id: int):
             status_code=status.HTTP_404_NOT_FOUND, detail="Object not found"
         )
 
-    return SingleMapObjectResponse(success=True, data=serialize_map_object(row))
+    return SingleZoneResponse(success=True, data=serialize_zone(row))
 
 
-@router.post("", response_model=SingleMapObjectResponse)
-async def create_map_object(req: MapObjectCreate, user: dict = Depends(require_login)):
-    """Create a new map object."""
+@router.post("", response_model=SingleZoneResponse)
+async def create_zone(req: ZoneCreate, user: dict = Depends(require_login)):
+    """Create a new zone."""
     # Check quota
     if not check_daily_quota(user["id"], "CREATE"):
         raise HTTPException(
@@ -380,7 +381,7 @@ async def create_map_object(req: MapObjectCreate, user: dict = Depends(require_l
     geometry_json = json.dumps(req.geometry)
     cursor.execute(
         """
-        INSERT INTO map_objects (geometry, zone_type_id, description, created_by)
+        INSERT INTO zones (geometry, zone_type_id, description, created_by)
         VALUES (?, ?, ?, ?)
     """,
         (geometry_json, zone_type_id, req.description, user["id"]),
@@ -400,23 +401,23 @@ async def create_map_object(req: MapObjectCreate, user: dict = Depends(require_l
     conn.commit()
 
     # Get created object
-    cursor.execute("SELECT * FROM map_objects WHERE id = ?", (object_id,))
+    cursor.execute("SELECT * FROM zones WHERE id = ?", (object_id,))
     obj = dict_from_row(cursor.fetchone())
     conn.close()
 
     # Broadcast to all clients
     if sio:
         await sio.emit(
-            "map_object_created",
+            "zone_created",
             {
-                "object": serialize_map_object(obj).__dict__,
+                "object": serialize_zone(obj).__dict__,
             },
             skip_sid=None,
         )
 
-    return SingleMapObjectResponse(
+    return SingleZoneResponse(
         success=True,
-        data=serialize_map_object(obj),
+        data=serialize_zone(obj),
         remaining_quota=get_remaining_quota(user["id"], "CREATE"),
     )
 
@@ -428,7 +429,7 @@ async def checkout_object(object_id: int, user: dict = Depends(require_login)):
     cursor = conn.cursor()
 
     # Get object
-    cursor.execute("SELECT * FROM map_objects WHERE id = ?", (object_id,))
+    cursor.execute("SELECT * FROM zones WHERE id = ?", (object_id,))
     obj = dict_from_row(cursor.fetchone())
 
     if not obj:
@@ -460,7 +461,7 @@ async def checkout_object(object_id: int, user: dict = Depends(require_login)):
     ).isoformat()
     cursor.execute(
         """
-        UPDATE map_objects
+        UPDATE zones
         SET locked_by = ?, lock_expires_at = ?
         WHERE id = ?
     """,
@@ -473,7 +474,7 @@ async def checkout_object(object_id: int, user: dict = Depends(require_login)):
     # Broadcast lock event
     if sio:
         await sio.emit(
-            "map_object_locked",
+            "zone_locked",
             {
                 "object_id": object_id,
                 "locked_by": user["id"],
@@ -493,7 +494,7 @@ async def release_object(object_id: int, user: dict = Depends(require_login)):
     cursor = conn.cursor()
 
     # Get object
-    cursor.execute("SELECT * FROM map_objects WHERE id = ?", (object_id,))
+    cursor.execute("SELECT * FROM zones WHERE id = ?", (object_id,))
     obj = dict_from_row(cursor.fetchone())
 
     if not obj:
@@ -512,7 +513,7 @@ async def release_object(object_id: int, user: dict = Depends(require_login)):
     # Release lock
     cursor.execute(
         """
-        UPDATE map_objects
+        UPDATE zones
         SET locked_by = NULL, lock_expires_at = NULL
         WHERE id = ?
     """,
@@ -525,7 +526,7 @@ async def release_object(object_id: int, user: dict = Depends(require_login)):
     # Broadcast release event
     if sio:
         await sio.emit(
-            "map_object_released",
+            "zone_released",
             {
                 "object_id": object_id,
             },
@@ -535,16 +536,16 @@ async def release_object(object_id: int, user: dict = Depends(require_login)):
     return CheckoutResponse(success=True)
 
 
-@router.put("/{object_id}", response_model=SingleMapObjectResponse)
-async def update_map_object(
-    object_id: int, req: MapObjectUpdate, user: dict = Depends(require_login)
+@router.put("/{object_id}", response_model=SingleZoneResponse)
+async def update_zone(
+    object_id: int, req: ZoneUpdate, user: dict = Depends(require_login)
 ):
-    """Update map object (requires lock)."""
+    """Update zone (requires lock)."""
     conn = get_db()
     cursor = conn.cursor()
 
     # Get object
-    cursor.execute("SELECT * FROM map_objects WHERE id = ?", (object_id,))
+    cursor.execute("SELECT * FROM zones WHERE id = ?", (object_id,))
     obj = dict_from_row(cursor.fetchone())
 
     if not obj:
@@ -633,7 +634,7 @@ async def update_map_object(
 
     cursor.execute(
         """
-        UPDATE map_objects
+        UPDATE zones
         SET geometry = ?, zone_type_id = ?, description = ?,
             updated_by = ?, updated_at = ?, locked_by = NULL, lock_expires_at = NULL
         WHERE id = ?
@@ -668,35 +669,35 @@ async def update_map_object(
     conn.commit()
 
     # Get updated object
-    cursor.execute("SELECT * FROM map_objects WHERE id = ?", (object_id,))
+    cursor.execute("SELECT * FROM zones WHERE id = ?", (object_id,))
     updated_obj = dict_from_row(cursor.fetchone())
     conn.close()
 
     # Broadcast update event
     if sio:
         await sio.emit(
-            "map_object_updated",
+            "zone_updated",
             {
-                "object": serialize_map_object(updated_obj).__dict__,
+                "object": serialize_zone(updated_obj).__dict__,
             },
             skip_sid=None,
         )
 
-    return SingleMapObjectResponse(
+    return SingleZoneResponse(
         success=True,
-        data=serialize_map_object(updated_obj),
+        data=serialize_zone(updated_obj),
         remaining_quota=get_remaining_quota(user["id"], "UPDATE"),
     )
 
 
 @router.delete("/{object_id}", response_model=CheckoutResponse)
-async def delete_map_object(object_id: int, user: dict = Depends(require_login)):
-    """Soft-delete map object."""
+async def delete_zone(object_id: int, user: dict = Depends(require_login)):
+    """Soft-delete zone."""
     conn = get_db()
     cursor = conn.cursor()
 
     # Get object
-    cursor.execute("SELECT * FROM map_objects WHERE id = ?", (object_id,))
+    cursor.execute("SELECT * FROM zones WHERE id = ?", (object_id,))
     obj = dict_from_row(cursor.fetchone())
 
     if not obj:
@@ -718,7 +719,7 @@ async def delete_map_object(object_id: int, user: dict = Depends(require_login))
     # Soft delete
     cursor.execute(
         """
-        UPDATE map_objects
+        UPDATE zones
         SET deleted_at = ?, deleted_by = ?, locked_by = NULL, lock_expires_at = NULL
         WHERE id = ?
     """,
@@ -749,7 +750,7 @@ async def delete_map_object(object_id: int, user: dict = Depends(require_login))
     # Broadcast delete event
     if sio:
         await sio.emit(
-            "map_object_deleted",
+            "zone_deleted",
             {
                 "object_id": object_id,
                 "deleted_by": user["id"],
@@ -771,7 +772,7 @@ async def get_lock_status(object_id: int):
 
     cursor.execute(
         """
-        SELECT locked_by, lock_expires_at FROM map_objects WHERE id = ?
+        SELECT locked_by, lock_expires_at FROM zones WHERE id = ?
     """,
         (object_id,),
     )

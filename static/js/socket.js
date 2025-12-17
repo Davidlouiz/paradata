@@ -54,24 +54,24 @@ const SOCKET = {
         // receive a reason argument from Socket.IO
         this.io.on('disconnect', (reason) => this.onDisconnect(reason));
 
-        this.io.on('map_object_created', (data) => {
-            this.onMapObjectCreated(data);
+        this.io.on('zone_created', (data) => {
+            this.onZoneCreated(data);
         });
 
-        this.io.on('map_object_updated', (data) => {
-            this.onMapObjectUpdated(data);
+        this.io.on('zone_updated', (data) => {
+            this.onZoneUpdated(data);
         });
 
-        this.io.on('map_object_deleted', (data) => {
-            this.onMapObjectDeleted(data);
+        this.io.on('zone_deleted', (data) => {
+            this.onZoneDeleted(data);
         });
 
-        this.io.on('map_object_locked', (data) => {
-            this.onMapObjectLocked(data);
+        this.io.on('zone_locked', (data) => {
+            this.onZoneLocked(data);
         });
 
-        this.io.on('map_object_released', (data) => {
-            this.onMapObjectReleased(data);
+        this.io.on('zone_released', (data) => {
+            this.onZoneReleased(data);
         });
     },
 
@@ -138,7 +138,7 @@ const SOCKET = {
         UI.notify(message, 'error');
     },
 
-    async onMapObjectCreated(data) {
+    async onZoneCreated(data) {
         console.log('Map object created:', data);
         await APP.loadMapObjects();
         // Don't show notification if user just created it
@@ -149,13 +149,13 @@ const SOCKET = {
         }
     },
 
-    async onMapObjectUpdated(data) {
+    async onZoneUpdated(data) {
         console.log('Map object updated:', data);
         await APP.loadMapObjects();
 
         // Refresh drawer if currently viewing this object
         if (UI.selectedObjectId === data.object.id && !UI.isEditMode) {
-            const obj = await API.getMapObject(data.object.id);
+            const obj = await API.getZone(data.object.id);
             UI.showDrawerDetails(obj);
         }
 
@@ -167,7 +167,7 @@ const SOCKET = {
         }
     },
 
-    async onMapObjectDeleted(data) {
+    async onZoneDeleted(data) {
         console.log('Map object deleted:', data);
         await APP.loadMapObjects();
 
@@ -182,24 +182,24 @@ const SOCKET = {
         UI.notify(`Zone #${zoneId} supprimée par ${deletedBy}`, 'info');
     },
 
-    async onMapObjectLocked(data) {
+    async onZoneLocked(data) {
         console.log('Map object locked:', data);
 
         // Refresh lock status
         if (UI.selectedObjectId === data.object_id) {
-            const obj = await API.getMapObject(data.object_id);
+            const obj = await API.getZone(data.object_id);
             if (!UI.isEditMode) {
                 UI.showDrawerDetails(obj);
             }
         }
     },
 
-    async onMapObjectReleased(data) {
+    async onZoneReleased(data) {
         console.log('Map object released:', data);
 
         // Refresh lock status
         if (UI.selectedObjectId === data.object_id) {
-            const obj = await API.getMapObject(data.object_id);
+            const obj = await API.getZone(data.object_id);
             if (!UI.isEditMode) {
                 UI.showDrawerDetails(obj);
             }

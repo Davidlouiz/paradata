@@ -95,49 +95,49 @@ const API = {
 
     // ========== Map Objects Endpoints ==========
 
-    async listMapObjects(bbox) {
+    async listZones(bbox) {
         const params = new URLSearchParams({
             minLat: bbox.minLat,
             minLng: bbox.minLng,
             maxLat: bbox.maxLat,
             maxLng: bbox.maxLng,
         });
-        const res = await this.request('GET', `/map-objects?${params}`);
+        const res = await this.request('GET', `/zones?${params}`);
         return res;
     },
 
     async getMapObject(id) {
-        const res = await this.request('GET', `/map-objects/${id}`);
+        const res = await this.request('GET', `/zones/${id}`);
         return res;
     },
 
-    async createMapObject(payload) {
-        const res = await this.request('POST', '/map-objects', payload);
+    async createZone(payload) {
+        const res = await this.request('POST', '/zones', payload);
         return res;
     },
 
     async checkoutObject(id) {
-        const res = await this.request('POST', `/map-objects/${id}/checkout`);
+        const res = await this.request('POST', `/zones/${id}/checkout`);
         return res;
     },
 
     async releaseObject(id) {
-        const res = await this.request('POST', `/map-objects/${id}/release`);
+        const res = await this.request('POST', `/zones/${id}/release`);
         return res;
     },
 
-    async updateMapObject(id, payload) {
-        const res = await this.request('PUT', `/map-objects/${id}`, payload);
+    async updateZone(id, payload) {
+        const res = await this.request('PUT', `/zones/${id}`, payload);
         return res;
     },
 
-    async deleteMapObject(id) {
-        const res = await this.request('DELETE', `/map-objects/${id}`);
+    async deleteZone(id) {
+        const res = await this.request('DELETE', `/zones/${id}`);
         return res;
     },
 
     async getLockStatus(id) {
-        const res = await this.request('GET', `/map-objects/${id}/lock`);
+        const res = await this.request('GET', `/zones/${id}/lock`);
         return res;
     },
 

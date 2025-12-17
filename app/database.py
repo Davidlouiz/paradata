@@ -52,10 +52,10 @@ def init_db():
         )
     """)
 
-    # Map objects table
+    # Map zones table
     cursor.execute(
         """
-        CREATE TABLE IF NOT EXISTS map_objects (
+        CREATE TABLE IF NOT EXISTS zones (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             geometry TEXT NOT NULL,
             zone_type_id INTEGER NOT NULL,
@@ -87,17 +87,15 @@ def init_db():
             timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             before_data TEXT,
             after_data TEXT,
-            FOREIGN KEY (object_id) REFERENCES map_objects(id),
+            FOREIGN KEY (object_id) REFERENCES zones(id),
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
     """)
 
     # Create indices for performance
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_zones_deleted ON zones(deleted_at)")
     cursor.execute(
-        "CREATE INDEX IF NOT EXISTS idx_map_objects_deleted ON map_objects(deleted_at)"
-    )
-    cursor.execute(
-        "CREATE INDEX IF NOT EXISTS idx_map_objects_locked ON map_objects(locked_by, lock_expires_at)"
+        "CREATE INDEX IF NOT EXISTS idx_zones_locked ON zones(locked_by, lock_expires_at)"
     )
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_audit_log_object ON audit_log(object_id)"

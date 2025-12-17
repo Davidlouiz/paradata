@@ -5,7 +5,7 @@
 const APP = (() => {
     let map = null;
     let quotaHoldActive = false; // Affiche les plafonds uniquement quand Q est enfoncée
-    let mapLayers = {}; // id -> Leaflet layer
+    let zoneLayers = {}; // id -> Leaflet layer
     let stateUnsubscribe = null;
     let pollingIntervalId = null;
 
@@ -235,8 +235,8 @@ const APP = (() => {
                 maxLng: bounds.getEast(),
             };
 
-            const res = await API.listMapObjects(bbox);
-            renderMapObjects(res.data || []);
+            const res = await API.listZones(bbox);
+            renderZones(res.data || []);
         } catch (err) {
             console.error('Error loading map objects:', err);
         }
@@ -245,7 +245,7 @@ const APP = (() => {
     /**
      * Afficher les objets sur la carte
      */
-    function renderMapObjects(objects) {
+    function renderZones(objects) {
         const state = AppState.getState();
 
         // Si on est en édition, ne pas recharger la zone en cours d'édition
@@ -255,18 +255,18 @@ const APP = (() => {
             const objectsToUpdate = objects.filter(obj => obj.id !== editingObjectId);
 
             // Supprimer les couches non éditées qui ne sont plus dans les données
-            Object.keys(mapLayers).forEach((id) => {
+            Object.keys(zoneLayers).forEach((id) => {
                 const intId = parseInt(id);
                 if (intId !== editingObjectId && !objectsToUpdate.find(obj => obj.id === intId)) {
-                    map.removeLayer(mapLayers[id]);
-                    delete mapLayers[id];
+                    map.removeLayer(zoneLayers[id]);
+                    delete zoneLayers[id];
                 }
             });
 
             // Ajouter/mettre à jour les autres zones
             objectsToUpdate.forEach((obj) => {
-                if (!mapLayers[obj.id]) {
-                    renderMapObject(obj);
+                if (!zoneLayers[obj.id]) {
+                    renderZone(obj);
                 }
             });
             // Mettre à jour le compteur avec le nombre total visible (hors supprimés)
@@ -275,15 +275,15 @@ const APP = (() => {
         }
 
         // Mode normal : Effacer toutes les couches et rafraîchir
-        Object.keys(mapLayers).forEach((id) => {
-            map.removeLayer(mapLayers[id]);
-            delete mapLayers[id];
+        Object.keys(zoneLayers).forEach((id) => {
+            map.removeLayer(zoneLayers[id]);
+            delete zoneLayers[id];
         });
 
         // Ajouter les nouvelles couches
         objects.forEach((obj) => {
-            if (!mapLayers[obj.id]) {
-                renderMapObject(obj);
+            if (!zoneLayers[obj.id]) {
+                renderZone(obj);
             }
         });
 
@@ -294,20 +294,20 @@ const APP = (() => {
     /**
      * Afficher un objet sur la carte
      */
-    function renderMapObject(obj) {
+    function renderZone(obj) {
         if (!obj.geometry) return;
 
         try {
             const layer = L.geoJSON(obj.geometry, {
                 style: () => getPolygonStyle(obj),
                 onEachFeature: (feature, layer) => {
-                    layer.on('click', () => selectPolygon(obj, layer));
+                    layer.on('click', () => selectZone(obj, layer));
                 },
             });
 
             layer.addTo(map);
             layer.objData = obj;
-            mapLayers[obj.id] = layer;
+            zoneLayers[obj.id] = layer;
         } catch (err) {
             console.error('Error rendering polygon:', err, obj);
         }
@@ -320,7 +320,7 @@ const APP = (() => {
         try {
             const el = document.getElementById('map-counter');
             if (!el) return;
-            const n = typeof count === 'number' ? count : Object.keys(mapLayers).length;
+            const n = typeof count === 'number' ? count : Object.keys(zoneLayers).length;
             if (n > 0) {
                 el.textContent = `${n} zone${n > 1 ? 's' : ''} répertoriée${n > 1 ? 's' : ''}`;
                 el.style.display = 'block';
@@ -356,7 +356,7 @@ const APP = (() => {
      * Réappliquer le style standard à toutes les couches (utile après désélection globale)
      */
     function restyleAllLayers() {
-        Object.values(mapLayers).forEach((layer) => {
+        Object.values(zoneLayers).forEach((layer) => {
             if (layer?.objData) {
                 layer.setStyle(getPolygonStyle(layer.objData));
             }
@@ -366,7 +366,7 @@ const APP = (() => {
     /**
     * Sélectionner une zone
      */
-    function selectPolygon(obj, layer) {
+    function selectZone(obj, layer) {
         const state = AppState.getState();
 
         // Ignorer les clics pendant le dessin d'une nouvelle zone
@@ -392,7 +392,7 @@ const APP = (() => {
 
         // Maintenant, mettre à jour le style de l'ancien sélectionné
         if (state.selectedObjectId && state.selectedObjectId !== obj.id) {
-            const oldLayer = mapLayers[state.selectedObjectId];
+            const oldLayer = zoneLayers[state.selectedObjectId];
             if (oldLayer) {
                 oldLayer.setStyle(getPolygonStyle(oldLayer.objData));
             }
@@ -775,8 +775,8 @@ const APP = (() => {
             DRAW.startEditMode(obj);
 
             // Retirer la zone originale de la carte (appliquer style normal avant)
-            if (mapLayers[obj.id]) {
-                const layer = mapLayers[obj.id];
+            if (zoneLayers[obj.id]) {
+                const layer = zoneLayers[obj.id];
                 // Appliquer le style normal (sans sélection) avant de cacher
                 layer.setStyle({
                     color: getColorByZoneType(obj.zone_type),
@@ -892,7 +892,7 @@ const APP = (() => {
 
             if (state.mode === 'DRAW') {
                 // Créer une nouvelle zone
-                const res = await API.createMapObject({
+                const res = await API.createZone({
                     geometry,
                     zone_type,
                     description,
@@ -904,7 +904,7 @@ const APP = (() => {
                 savedObjectData = res.data;
             } else if (state.mode === 'EDIT') {
                 // Mettre à jour une zone existante
-                const res = await API.updateMapObject(state.selectedObjectId, {
+                const res = await API.updateZone(state.selectedObjectId, {
                     geometry,
                     zone_type,
                     description,
@@ -923,7 +923,7 @@ const APP = (() => {
 
             // Si on vient d'éditer, mettre à jour la couche cachée AVANT de la restaurer
             if (state.mode === 'EDIT' && savedObjectData) {
-                const editedLayer = mapLayers[state.selectedObjectId];
+                const editedLayer = zoneLayers[state.selectedObjectId];
                 if (editedLayer && editedLayer._isHidden) {
                     // Mettre à jour les données de la couche pendant qu'elle est cachée
                     editedLayer.objData = savedObjectData;
@@ -939,8 +939,8 @@ const APP = (() => {
             }
 
             // Restaurer les autres polygones cachés
-            Object.keys(mapLayers).forEach((id) => {
-                const layer = mapLayers[id];
+            Object.keys(zoneLayers).forEach((id) => {
+                const layer = zoneLayers[id];
                 if (layer._isHidden) {
                     map.addLayer(layer);
                     layer._isHidden = false;
@@ -988,7 +988,7 @@ const APP = (() => {
             // TODO: Optionnel - exiger le verrou pour supprimer
             // Pour maintenant, supprimer directement
 
-            await API.deleteMapObject(state.selectedObjectId);
+            await API.deleteZone(state.selectedObjectId);
             // Notification broadcastée par socket.js à tous les utilisateurs
 
             // Si on était en mode EDIT, nettoyer les couches d'édition
@@ -1052,8 +1052,8 @@ const APP = (() => {
         restyleAllLayers();
 
         // Restaurer les polygones cachés avec le bon style immédiatement
-        Object.keys(mapLayers).forEach((id) => {
-            const layer = mapLayers[id];
+        Object.keys(zoneLayers).forEach((id) => {
+            const layer = zoneLayers[id];
             if (layer._isHidden) {
                 // Appliquer le style normal AVANT de réafficher la couche
                 layer.setStyle(getPolygonStyle(layer.objData));
@@ -1071,9 +1071,9 @@ const APP = (() => {
                 if (res.success && res.data) {
                     const objData = res.data;
                     AppState.selectObject(objData);
-                    if (mapLayers[wasEditingObjectId]) {
-                        mapLayers[wasEditingObjectId].objData = objData;
-                        mapLayers[wasEditingObjectId].setStyle(getPolygonStyle(objData));
+                    if (zoneLayers[wasEditingObjectId]) {
+                        zoneLayers[wasEditingObjectId].objData = objData;
+                        zoneLayers[wasEditingObjectId].setStyle(getPolygonStyle(objData));
                     }
                     UI.showDrawerDetails(objData);
                 }

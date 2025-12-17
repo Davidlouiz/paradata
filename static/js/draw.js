@@ -216,7 +216,7 @@ const DRAW = (() => {
     /**
      * Démarrer le mode EDIT (éditer un polygone existant)
      */
-    function startEditMode(mapObject) {
+    function startEditMode(zone) {
         if (!isGeomanReady) {
             console.error('Geoman not initialized');
             return;
@@ -225,7 +225,7 @@ const DRAW = (() => {
         currentMode = 'EDIT';
 
         // Extraire la géométrie de l'objet
-        const geometry = mapObject.geometry || mapObject;
+        const geometry = zone.geometry || zone;
 
         // Créer un GeoJSON Feature avec juste la géométrie
         const geoJsonFeature = {
@@ -235,7 +235,7 @@ const DRAW = (() => {
         };
 
         // Ajouter le polygone à la map
-        const baseColor = getColorByZoneType(mapObject.zone_type);
+        const baseColor = getColorByZoneType(zone.zone_type);
         const layer = L.geoJSON(geoJsonFeature, {
             style: {
                 color: baseColor,

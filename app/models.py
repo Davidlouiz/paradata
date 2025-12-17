@@ -37,13 +37,13 @@ class MapObjectGeometry(BaseModel):
     coordinates: List
 
 
-class MapObjectCreate(BaseModel):
+class ZoneCreate(BaseModel):
     geometry: dict  # GeoJSON geometry
     zone_type: str  # DENSE_VEGETATION, REMOTE_AREA
     description: Optional[str] = None
 
 
-class MapObjectUpdate(BaseModel):
+class ZoneUpdate(BaseModel):
     geometry: Optional[dict] = None
     zone_type: Optional[str] = None
     description: Optional[str] = None
@@ -55,7 +55,7 @@ class MapObjectLock(BaseModel):
     lock_expires_at: Optional[str] = None
 
 
-class MapObjectResponse(BaseModel):
+class ZoneResponse(BaseModel):
     id: int
     geometry: dict
     zone_type: str
@@ -69,15 +69,15 @@ class MapObjectResponse(BaseModel):
     lock: Optional[MapObjectLock]
 
 
-class MapObjectsListResponse(BaseModel):
+class ZonesListResponse(BaseModel):
     success: bool
-    data: List[MapObjectResponse]
+    data: List[ZoneResponse]
     error: Optional[str] = None
 
 
-class SingleMapObjectResponse(BaseModel):
+class SingleZoneResponse(BaseModel):
     success: bool
-    data: Optional[MapObjectResponse] = None
+    data: Optional[ZoneResponse] = None
     error: Optional[str] = None
 
 
