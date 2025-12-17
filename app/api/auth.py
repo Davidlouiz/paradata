@@ -23,18 +23,18 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30 * 24  # 30 days
 
 
 def get_password_hash(password: str) -> str:
-    """Hash a password."""
+    """Hacher un mot de passe."""
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(password.encode(), salt).decode()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against its hash."""
+    """Vérifier un mot de passe par rapport à son hash."""
     return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
 
 
 def create_access_token(user_id: int, expires_delta: Optional[timedelta] = None) -> str:
-    """Create JWT access token."""
+    """Créer un jeton d’accès JWT."""
     if expires_delta is None:
         expires_delta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
@@ -46,7 +46,7 @@ def create_access_token(user_id: int, expires_delta: Optional[timedelta] = None)
 
 
 def get_current_user(authorization: Optional[str] = Header(None)):
-    """Get current user from JWT token in Authorization header."""
+    """Obtenir l’utilisateur courant à partir du jeton JWT dans l’en-tête Authorization."""
     if not authorization:
         return None
 
@@ -77,7 +77,7 @@ def get_current_user(authorization: Optional[str] = Header(None)):
 
 
 def require_login(user: Optional[dict] = Depends(get_current_user)):
-    """Dependency to require authentication."""
+    """Dépendance pour exiger l’authentification."""
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
@@ -87,7 +87,7 @@ def require_login(user: Optional[dict] = Depends(get_current_user)):
 
 @router.post("/login", response_model=LoginResponse)
 async def login(req: LoginRequest):
-    """Authenticate user and return JWT token."""
+    """Authentifier l’utilisateur et retourner un jeton JWT."""
     print(f"[auth.login] attempt for username={req.username}")
 
     def _find_user():
@@ -140,13 +140,13 @@ async def login(req: LoginRequest):
 
 @router.post("/logout")
 async def logout():
-    """Logout user (client-side: discard token)."""
+    """Déconnexion de l’utilisateur (côté client : jeter le jeton)."""
     return {"success": True, "message": "Logged out"}
 
 
 @router.get("/me", response_model=AuthMeResponse)
 async def me(user: Optional[dict] = Depends(get_current_user)):
-    """Get current authenticated user info."""
+    """Obtenir les informations de l’utilisateur authentifié."""
     if user is None:
         return AuthMeResponse(success=True, data=None)
 
@@ -160,7 +160,7 @@ async def me(user: Optional[dict] = Depends(get_current_user)):
 
 @router.get("/quota")
 async def quota(user: dict = Depends(require_login)):
-    """Return per-action quota breakdown and limits for current user."""
+    """Retourner le détail des quotas par action et les limites pour l’utilisateur courant."""
     breakdown = get_daily_usage_breakdown(user["id"])
     return {
         "success": True,
@@ -174,7 +174,7 @@ async def quota(user: dict = Depends(require_login)):
 
 @router.post("/register")
 async def register(req: LoginRequest):
-    """Register a new user."""
+    """Enregistrer un nouvel utilisateur."""
 
     def _create_user():
         conn = get_db()

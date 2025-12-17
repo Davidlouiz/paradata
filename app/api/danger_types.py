@@ -1,4 +1,4 @@
-"""Zone Types API endpoints."""
+"""Endpoints de l’API des types de zones."""
 
 from fastapi import APIRouter, Depends
 from app.database import get_db
@@ -8,7 +8,7 @@ router = APIRouter(prefix="/zone-types", tags=["zone-types"])
 
 @router.get("")
 def get_zone_types(db=Depends(get_db)):
-    """List available zone types (code/name/color)."""
+    """Lister les types de zones disponibles (code/nom/couleur)."""
     cursor = db.execute("SELECT code, name, color_hex FROM zone_types ORDER BY name")
     types = cursor.fetchall()
 

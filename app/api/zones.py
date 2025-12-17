@@ -30,7 +30,7 @@ sio = None
 
 
 def set_sio(socket_server):
-    """Inject Socket.IO instance."""
+    """Injecter l’instance Socket.IO."""
     global sio
     sio = socket_server
 
@@ -41,7 +41,7 @@ router = APIRouter(prefix="/zones", tags=["zones"])
 def _geometry_intersects_existing(
     conn, new_geom_json: dict, exclude_id: int | None = None
 ) -> bool:
-    """Return True if new geometry intersects any existing non-deleted geometry.
+    """Retourne True si la nouvelle géométrie intersecte une géométrie existante non supprimée.
 
     Erodes both geometries by ~10cm (0.00001°) to tolerate boundary contacts.
     """
@@ -98,7 +98,7 @@ GRACE_DELETE_MINUTES = 120  # free delete within 120 minutes after creation
 
 
 def parse_utc(dt_str: str) -> datetime:
-    """Parse ISO string and return timezone-aware UTC datetime."""
+    """Analyser une chaîne ISO et retourner un datetime UTC avec fuseau horaire."""
     if not dt_str:
         return None
     dt = datetime.fromisoformat(dt_str)
@@ -110,7 +110,7 @@ def parse_utc(dt_str: str) -> datetime:
 
 
 def _get_zone_type_id(conn, code: str) -> int:
-    """Resolve zone type code to ID, raise 422 if not found."""
+    """Résoudre le code de type de zone en ID, lever 422 si introuvable."""
     if not code:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -128,7 +128,7 @@ def _get_zone_type_id(conn, code: str) -> int:
 
 
 def serialize_zone(row: dict, conn=None) -> ZoneResponse:
-    """Convert database row to ZoneResponse."""
+    """Convertir une ligne de base de données en `ZoneResponse`."""
     if not row:
         return None
 
@@ -186,7 +186,7 @@ def serialize_zone(row: dict, conn=None) -> ZoneResponse:
 
 
 def _audit_snapshot(geometry_json: str, zone_type: str, description: str | None) -> str:
-    """Build a JSON snapshot for audit comparisons."""
+    """Construire un instantané JSON pour les comparaisons d’audit."""
     try:
         geometry = json.loads(geometry_json)
     except Exception:
@@ -211,7 +211,7 @@ def _quota_message(user_id: int) -> str:
 
 
 def _is_within_creation_grace(obj: dict, user_id: int, minutes: int) -> bool:
-    """Return True if creator acts within grace window after creation."""
+    """Retourne True si le créateur agit dans la fenêtre de grâce après la création."""
     if obj.get("created_by") != user_id:
         return False
     created_at = parse_utc(obj.get("created_at"))
@@ -221,7 +221,7 @@ def _is_within_creation_grace(obj: dict, user_id: int, minutes: int) -> bool:
 
 
 def _is_delete_undo_create(obj: dict, user: dict) -> bool:
-    """Return True if delete qualifies as an undo of a recent self-created object."""
+    """Retourne True si la suppression équivaut à annuler un objet récemment créé par l’utilisateur."""
     # Deprecated stricter rule; kept for reference. Use grace helper instead.
     return _is_within_creation_grace(obj, user["id"], GRACE_DELETE_MINUTES)
 
@@ -229,7 +229,7 @@ def _is_delete_undo_create(obj: dict, user: dict) -> bool:
 def _is_update_rollback(
     conn, object_id: int, user_id: int, target_snapshot: str
 ) -> bool:
-    """Return True if the update reverts the user's last change within 30 minutes."""
+    """Retourne True si la mise à jour annule le dernier changement de l’utilisateur dans les 30 minutes."""
     cursor = conn.cursor()
     cursor.execute(
         """
@@ -303,7 +303,7 @@ async def list_zones(
     maxLat: float = Query(...),
     maxLng: float = Query(...),
 ):
-    """Get visible zones in bbox (public endpoint)."""
+    """Obtenir les zones visibles dans le rectangle englobant (endpoint public)."""
     conn = get_db()
     cursor = conn.cursor()
 
@@ -325,7 +325,7 @@ async def list_zones(
 
 @router.get("/{object_id}", response_model=SingleZoneResponse)
 async def get_zone(object_id: int):
-    """Get single zone by ID (public endpoint)."""
+    """Obtenir une zone unique par ID (endpoint public)."""
     conn = get_db()
     cursor = conn.cursor()
 
@@ -350,7 +350,7 @@ async def get_zone(object_id: int):
 
 @router.post("", response_model=SingleZoneResponse)
 async def create_zone(req: ZoneCreate, user: dict = Depends(require_login)):
-    """Create a new zone."""
+    """Créer une nouvelle zone."""
     # Check quota
     if not check_daily_quota(user["id"], "CREATE"):
         raise HTTPException(
@@ -424,7 +424,7 @@ async def create_zone(req: ZoneCreate, user: dict = Depends(require_login)):
 
 @router.post("/{object_id}/checkout", response_model=CheckoutResponse)
 async def checkout_object(object_id: int, user: dict = Depends(require_login)):
-    """Acquire lock on object for editing."""
+    """Acquérir le verrou sur la zone pour édition."""
     conn = get_db()
     cursor = conn.cursor()
 
@@ -489,7 +489,7 @@ async def checkout_object(object_id: int, user: dict = Depends(require_login)):
 
 @router.post("/{object_id}/release", response_model=CheckoutResponse)
 async def release_object(object_id: int, user: dict = Depends(require_login)):
-    """Release lock on object without modifying it."""
+    """Libérer le verrou sur la zone sans la modifier."""
     conn = get_db()
     cursor = conn.cursor()
 
@@ -540,7 +540,7 @@ async def release_object(object_id: int, user: dict = Depends(require_login)):
 async def update_zone(
     object_id: int, req: ZoneUpdate, user: dict = Depends(require_login)
 ):
-    """Update zone (requires lock)."""
+    """Mettre à jour la zone (nécessite un verrou)."""
     conn = get_db()
     cursor = conn.cursor()
 
@@ -692,7 +692,7 @@ async def update_zone(
 
 @router.delete("/{object_id}", response_model=CheckoutResponse)
 async def delete_zone(object_id: int, user: dict = Depends(require_login)):
-    """Soft-delete zone."""
+    """Suppression logique de la zone."""
     conn = get_db()
     cursor = conn.cursor()
 
@@ -766,7 +766,7 @@ async def delete_zone(object_id: int, user: dict = Depends(require_login)):
 
 @router.get("/{object_id}/lock")
 async def get_lock_status(object_id: int):
-    """Get lock status of object (public)."""
+    """Obtenir le statut du verrou de la zone (public)."""
     conn = get_db()
     cursor = conn.cursor()
 
