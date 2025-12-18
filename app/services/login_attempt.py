@@ -1,4 +1,5 @@
 """Service for managing login attempts and account lockout."""
+
 from datetime import datetime, timedelta
 from app.database import get_db
 
@@ -52,11 +53,14 @@ def is_user_locked_out(username: str) -> bool:
     try:
         conn = get_db()
         c = conn.cursor()
-        c.execute("""
+        c.execute(
+            """
             SELECT locked_until FROM login_lockout WHERE username = ?
-        """, (username,))
+        """,
+            (username,),
+        )
         result = c.fetchone()
-        
+
         if not result:
             return False
 
@@ -79,9 +83,12 @@ def get_lockout_remaining_time(username: str) -> int:
     try:
         conn = get_db()
         c = conn.cursor()
-        c.execute("""
+        c.execute(
+            """
             SELECT locked_until FROM login_lockout WHERE username = ?
-        """, (username,))
+        """,
+            (username,),
+        )
         result = c.fetchone()
 
         if not result:

@@ -115,6 +115,7 @@ async def login(req: LoginRequest):
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"Compte temporairement verrouillé. Réessayez dans {minutes}m{seconds}s.",
         )
+
     def _find_user():
         conn = get_db()
         cursor = conn.cursor()
@@ -151,7 +152,9 @@ async def login(req: LoginRequest):
 
         if failed_count >= MAX_LOGIN_ATTEMPTS:
             lock_user_account(req.username)
-            print(f"[auth.login] user {req.username} locked out after {MAX_LOGIN_ATTEMPTS} attempts")
+            print(
+                f"[auth.login] user {req.username} locked out after {MAX_LOGIN_ATTEMPTS} attempts"
+            )
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=f"Trop de tentatives échouées. Compte verrouillé pour 15 minutes.",
