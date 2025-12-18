@@ -73,7 +73,7 @@ def _validate_zone_type_inputs(
 def create_zone_type(
     payload: dict, user: dict = Depends(require_login), db=Depends(get_db)
 ):
-    """Créer un type de zone. Restaure s'il existe en supprimé, sinon insère, sinon 409 si déjà actif."""
+    """Créer un type de zone. 409 s'il existe déjà."""
     code = payload.get("code")
     name = payload.get("name")
     color = payload.get("color") or payload.get("color_hex")
@@ -131,7 +131,7 @@ def update_zone_type(
     user: dict = Depends(require_login),
     db=Depends(get_db),
 ):
-    """Mettre à jour un type de zone actif (nom, description, couleur, et éventuellement code si < 3 mois)."""
+    """Mettre à jour un type de zone (nom, description, couleur, et éventuellement code si < 7 jours)."""
     # Doit exister et ne pas être supprimé
     row = db.execute(
         "SELECT id, code, created_at FROM zone_types WHERE code = ? AND deleted_at IS NULL",
