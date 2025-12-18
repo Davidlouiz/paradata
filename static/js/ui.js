@@ -619,25 +619,15 @@ const UI = (() => {
     }
 
     async function refreshZoneTypesEverywhere() {
-        console.log('[refreshZoneTypesEverywhere] START');
         try {
             const res = await API.getZoneTypes();
-            console.log('[refreshZoneTypesEverywhere] Got response:', res);
             if (res?.success && res.data) {
-                console.log('[refreshZoneTypesEverywhere] Updating zone types:', res.data);
-                console.log('[refreshZoneTypesEverywhere] window.AppState exists?', !!window.AppState);
-                console.log('[refreshZoneTypesEverywhere] window.AppState.setZoneTypes exists?', !!(window.AppState?.setZoneTypes));
                 if (window.AppState?.setZoneTypes) {
-                    console.log('[refreshZoneTypesEverywhere] Calling window.AppState.setZoneTypes');
                     window.AppState.setZoneTypes(res.data);
                 }
                 if (typeof setZoneTypes === 'function') {
-                    console.log('[refreshZoneTypesEverywhere] Calling local setZoneTypes');
                     setZoneTypes(res.data);
                 }
-                console.log('[refreshZoneTypesEverywhere] DONE');
-            } else {
-                console.log('[refreshZoneTypesEverywhere] No success or data in response');
             }
         } catch (e) {
             console.error('[refreshZoneTypesEverywhere] Error:', e);
