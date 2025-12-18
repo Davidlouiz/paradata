@@ -232,12 +232,16 @@
 
     <!-- Zone Types Management Modal -->
     <div id="zone-types-modal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <button class="btn-close" id="zone-types-modal-close">&times;</button>
+        <div class="modal-content zone-types-modal-content">
+            <button id="zone-types-modal-close" class="btn-close zone-types-modal-close"
+                aria-label="Fermer">&times;</button>
             <div class="modal-header">
                 <h3 class="modal-title">Gestion des types de zone</h3>
             </div>
             <div class="modal-body">
+                <button id="zone-type-add-btn" class="btn btn-sm btn-primary" style="margin-bottom: 12px; width: 100%;">
+                    ➕ Ajouter un type de zone
+                </button>
                 <div id="zone-types-list">
                     <!-- Zone types will be populated here -->
                 </div>

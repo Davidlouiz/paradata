@@ -525,17 +525,20 @@ const UI = (() => {
         // Build HTML for zone types
         let html = '';
         if (zoneTypes && zoneTypes.length > 0) {
-            html = '<div class="zone-types-list">';
             zoneTypes.forEach(zt => {
                 html += `
-                    <div class="zone-type-item">
-                        <div class="zone-type-code"><strong>${zt.code}</strong></div>
-                        <div class="zone-type-name">${zt.name}</div>
-                        <div class="zone-type-desc">${zt.description || '(pas de description)'}</div>
+                    <div class="zone-type-item" data-zone-type-code="${zt.code}">
+                        <div class="zone-type-content">
+                            <div class="zone-type-name">${zt.name}</div>
+                            <div class="zone-type-desc">${zt.description || '(pas de description)'}</div>
+                        </div>
+                        <div class="zone-type-actions">
+                            <button class="edit-btn" title="Modifier">✏️</button>
+                            <button class="delete-btn" title="Supprimer">🗑️</button>
+                        </div>
                     </div>
                 `;
             });
-            html += '</div>';
         } else {
             html = '<p>Aucun type de zone disponible.</p>';
         }
