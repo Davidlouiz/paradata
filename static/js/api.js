@@ -146,4 +146,9 @@ const API = {
         const res = await this.request('GET', '/zone-types');
         return res;
     },
+
+    async deleteZoneType(code) {
+        const res = await this.request('DELETE', `/zone-types/${code}`);
+        return res;
+    },
 };

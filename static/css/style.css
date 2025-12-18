@@ -8,6 +8,10 @@
     z-index: 20000;
 }
 
+#confirm-dialog {
+    z-index: 25000;
+}
+
 /* Styles liés aux périmètres supprimés */
 
 .modal-content {
@@ -816,11 +820,6 @@ body {
 
     60% {
         transform: translateX(-6px);
-    }
-
-
-    .shake {
-        animation: shake 0.4s ease;
     }
 
     80% {

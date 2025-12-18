@@ -545,6 +545,42 @@ const UI = (() => {
 
         listEl.innerHTML = html;
         modal.style.display = 'flex';
+
+        // Attach delete button handlers
+        const deleteButtons = listEl.querySelectorAll('.delete-btn');
+        deleteButtons.forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const item = btn.closest('.zone-type-item');
+                const code = item?.getAttribute('data-zone-type-code');
+                if (!code) return;
+
+                // Find the zone type for display
+                const zt = zoneTypes.find(t => t.code === code);
+                const typeName = zt?.name || code;
+
+                // Confirm before deleting
+                if (!await confirm(`Êtes-vous sûr de vouloir supprimer "${typeName}" ?`)) {
+                    return;
+                }
+
+                // Delete the zone type
+                try {
+                    const res = await API.deleteZoneType(code);
+                    if (res.success) {
+                        notify(`Type "${typeName}" supprimé avec succès`, 'success');
+                        // Refresh the modal
+                        showZoneTypesModal();
+                    } else {
+                        notify(`Erreur : ${res.error || 'Impossible de supprimer le type'}`, 'error');
+                    }
+                } catch (err) {
+                    const errorMsg = err.data?.detail || err.message || 'Erreur lors de la suppression';
+                    notify(errorMsg, 'error');
+                }
+            });
+        });
     }
 
     function hideZoneTypesModal() {
