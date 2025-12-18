@@ -11,6 +11,13 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
+    captcha_token: str
+    captcha_answer: int
+
+
 class LoginResponse(BaseModel):
     success: bool
     data: Optional[dict] = None

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Depends, Header
+from fastapi import APIRouter, HTTPException, status, Depends, Header, Request
 from datetime import datetime, timedelta
 from typing import Optional
 import jwt
@@ -6,13 +6,20 @@ import bcrypt
 
 from app.database import get_db, dict_from_row
 import asyncio
-from app.models import LoginRequest, LoginResponse, AuthMeResponse, UserResponse
+from app.models import (
+    LoginRequest,
+    LoginResponse,
+    AuthMeResponse,
+    UserResponse,
+    RegisterRequest,
+)
 from app.services.quota import (
     get_daily_usage_breakdown,
     DAILY_CREATE_LIMIT,
     DAILY_UPDATE_LIMIT,
     DAILY_DELETE_LIMIT,
 )
+from app.api.captcha import verify_captcha
 
 router = APIRouter()
 
@@ -173,8 +180,15 @@ async def quota(user: dict = Depends(require_login)):
 
 
 @router.post("/register")
-async def register(req: LoginRequest):
-    """Enregistrer un nouvel utilisateur."""
+async def register(req: RegisterRequest, request: Request):
+    """Enregistrer un nouvel utilisateur avec validation CAPTCHA."""
+
+    # Vérifie le CAPTCHA
+    client_ip = request.client.host
+    if not verify_captcha(req.captcha_token, req.captcha_answer, client_ip):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="CAPTCHA invalide ou expiré"
+        )
 
     def _create_user():
         conn = get_db()

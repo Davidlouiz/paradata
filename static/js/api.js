@@ -70,11 +70,21 @@ const API = {
         return res.data;
     },
 
-    async register(username, password) {
-        const res = await this.request('POST', '/auth/register', { username, password });
+    async register(username, password, captcha_token, captcha_answer) {
+        const res = await this.request('POST', '/auth/register', {
+            username,
+            password,
+            captcha_token,
+            captcha_answer
+        });
         this.token = res.data.token;
         localStorage.setItem('token', this.token);
         return res.data;
+    },
+
+    async getCaptchaChallenge() {
+        const res = await this.request('GET', '/captcha/challenge');
+        return res; // { token, question }
     },
 
     async logout() {

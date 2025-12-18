@@ -117,6 +117,28 @@ const APP = (() => {
     }
 
     /**
+     * Charger un challenge CAPTCHA depuis le serveur
+     */
+    async function loadCaptcha() {
+        try {
+            const challenge = await API.getCaptchaChallenge();
+            window._currentCaptchaToken = challenge.token;
+            const questionEl = document.getElementById('captcha-question');
+            if (questionEl) {
+                questionEl.textContent = challenge.question + ' = ?';
+            }
+            const answerEl = document.getElementById('captcha-answer');
+            if (answerEl) {
+                answerEl.value = '';
+                answerEl.focus();
+            }
+        } catch (err) {
+            console.error('Erreur chargement CAPTCHA:', err);
+            UI.notify('Erreur de chargement du CAPTCHA', 'error');
+        }
+    }
+
+    /**
      * Initialiser l'application
      */
     async function init() {
@@ -313,8 +335,8 @@ const APP = (() => {
     /**
      * S'inscrire
      */
-    async function register(username, password) {
-        const user = await API.register(username, password);
+    async function register(username, password, captcha_token, captcha_answer) {
+        const user = await API.register(username, password, captcha_token, captcha_answer);
         AppState.setCurrentUser(user);
         UI.notify('Compte créé! Vous êtes connecté.', 'success');
         await refreshQuotaPanel();
@@ -996,7 +1018,7 @@ const APP = (() => {
 
         const btnToggleRegister = document.getElementById('btn-toggle-register');
         if (btnToggleRegister) {
-            btnToggleRegister.addEventListener('click', (e) => {
+            btnToggleRegister.addEventListener('click', async (e) => {
                 e.preventDefault();
                 const loginForm = document.getElementById('login-form');
                 const registerForm = document.getElementById('register-form');
@@ -1004,6 +1026,8 @@ const APP = (() => {
                 if (registerForm) registerForm.style.display = 'block';
                 const regUser = document.getElementById('register-username');
                 regUser?.focus();
+                // Charge le CAPTCHA
+                await loadCaptcha();
             });
         }
 
@@ -1046,6 +1070,8 @@ const APP = (() => {
                 const username = document.getElementById('register-username')?.value.trim();
                 const password = document.getElementById('register-password')?.value;
                 const confirm = document.getElementById('register-password-confirm')?.value;
+                const captchaAnswer = parseInt(document.getElementById('captcha-answer')?.value, 10);
+
                 if (!username || !password) {
                     UI.showAuthMessage('Champs requis manquants', true);
                     return;
@@ -1054,12 +1080,28 @@ const APP = (() => {
                     UI.showAuthMessage('Les mots de passe ne correspondent pas', true);
                     return;
                 }
+                if (isNaN(captchaAnswer) || !window._currentCaptchaToken) {
+                    UI.showAuthMessage('Veuillez résoudre le CAPTCHA', true);
+                    return;
+                }
+
                 try {
-                    await register(username, password);
+                    await register(username, password, window._currentCaptchaToken, captchaAnswer);
                     UI.hideLoginModal();
                 } catch (err) {
                     UI.showAuthMessage(err?.message || 'Inscription impossible', true);
+                    // Recharge un nouveau CAPTCHA en cas d'erreur
+                    await loadCaptcha();
                 }
+            });
+        }
+
+        // Bouton refresh CAPTCHA
+        const btnRefreshCaptcha = document.getElementById('btn-refresh-captcha');
+        if (btnRefreshCaptcha) {
+            btnRefreshCaptcha.addEventListener('click', async (e) => {
+                e.preventDefault();
+                await loadCaptcha();
             });
         }
 

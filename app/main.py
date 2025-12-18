@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from app.database import init_db, get_db
-from app.api import auth, zones
+from app.api import auth, zones, captcha
 from app.api import danger_types
 from app.services.ws_manager import manager
 
@@ -95,6 +95,7 @@ async def auth_user(sid, data):
 
 # Include routers
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(captcha.router, tags=["captcha"])
 app.include_router(zones.router, tags=["zones"])
 # Router des volontaires supprimé
 app.include_router(danger_types.router)
