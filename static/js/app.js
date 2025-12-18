@@ -268,6 +268,7 @@ const APP = (() => {
     function getColorByZoneType(zoneType) {
         const state = AppState.getState();
         const zone = state.zoneTypes?.find(t => t.code === zoneType);
+        console.log('[getColorByZoneType]', zoneType, 'found:', zone, 'color:', zone?.color);
         if (zone) return zone.color;
         return '#999'; // Par défaut
     }
@@ -403,8 +404,10 @@ const APP = (() => {
      * Réappliquer le style standard à toutes les couches (utile après désélection globale)
      */
     function restyleAllLayers() {
+        console.log('[restyleAllLayers] Restyling', Object.keys(zoneLayers).length, 'layers');
         Object.values(zoneLayers).forEach((layer) => {
             if (layer?.objData) {
+                console.log('[restyleAllLayers] Restyling layer', layer.objData.id, 'type:', layer.objData.zone_type);
                 layer.setStyle(getPolygonStyle(layer.objData));
             }
         });
@@ -1301,6 +1304,7 @@ const APP = (() => {
         cancelEdit,
         updateToolbarShellVisibility,
         applyQuotaVisibility,
+        restyleAllLayers,
     };
 })();
 

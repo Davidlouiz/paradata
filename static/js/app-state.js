@@ -318,3 +318,6 @@ const AppState = (() => {
         getLockExpirySeconds,
     };
 })();
+
+// Expose AppState to window for global access
+window.AppState = AppState;
