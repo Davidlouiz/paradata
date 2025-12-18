@@ -1766,7 +1766,6 @@ const APP = (() => {
     return {
         init,
         login,
-        register,
         logout,
         loadMapObjects,
         startPolling,
