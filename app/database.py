@@ -20,6 +20,16 @@ def init_db():
     conn = get_db()
     cursor = conn.cursor()
 
+    # Users table (created first, no dependencies)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     # Zone types table (dynamic list of severities)
     cursor.execute(
         """
@@ -84,16 +94,6 @@ def init_db():
         """
     )
 
-    # Users table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-
     # Map zones table
     cursor.execute(
         """
@@ -118,6 +118,25 @@ def init_db():
         )
     """
     )
+
+    # Login attempts table (for lockout mechanism)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS login_attempts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            attempted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            ip_address TEXT,
+            success BOOLEAN DEFAULT 0
+        )
+    """)
+
+    # Login lockout table (tracks locked accounts)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS login_lockout (
+            username TEXT PRIMARY KEY,
+            locked_until DATETIME NOT NULL
+        )
+    """)
 
     # Audit log table
     cursor.execute("""

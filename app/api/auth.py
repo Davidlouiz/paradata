@@ -19,6 +19,15 @@ from app.services.quota import (
     DAILY_UPDATE_LIMIT,
     DAILY_DELETE_LIMIT,
 )
+from app.services.login_attempt import (
+    record_login_attempt,
+    is_user_locked_out,
+    get_lockout_remaining_time,
+    get_failed_attempts_count,
+    lock_user_account,
+    reset_failed_attempts,
+    MAX_LOGIN_ATTEMPTS,
+)
 from app.api.captcha import verify_captcha
 
 router = APIRouter()
@@ -96,7 +105,16 @@ def require_login(user: Optional[dict] = Depends(get_current_user)):
 async def login(req: LoginRequest):
     """Authentifier l’utilisateur et retourner un jeton JWT."""
     print(f"[auth.login] attempt for username={req.username}")
-
+    # Check if user is locked out
+    if is_user_locked_out(req.username):
+        remaining = get_lockout_remaining_time(req.username)
+        minutes = remaining // 60
+        seconds = remaining % 60
+        print(f"[auth.login] user {req.username} is locked out for {remaining}s")
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Compte temporairement verrouillé. Réessayez dans {minutes}m{seconds}s.",
+        )
     def _find_user():
         conn = get_db()
         cursor = conn.cursor()
@@ -109,6 +127,7 @@ async def login(req: LoginRequest):
 
     if not user:
         print(f"[auth.login] user not found: {req.username}")
+        record_login_attempt(req.username, False)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password",
@@ -126,12 +145,27 @@ async def login(req: LoginRequest):
 
     if not valid:
         print(f"[auth.login] invalid password for user id={user.get('id')}")
+        # Record failed attempt
+        record_login_attempt(req.username, False)
+        failed_count = get_failed_attempts_count(req.username)
+
+        if failed_count >= MAX_LOGIN_ATTEMPTS:
+            lock_user_account(req.username)
+            print(f"[auth.login] user {req.username} locked out after {MAX_LOGIN_ATTEMPTS} attempts")
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Trop de tentatives échouées. Compte verrouillé pour 15 minutes.",
+            )
+
+        remaining_attempts = MAX_LOGIN_ATTEMPTS - failed_count
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password",
+            detail=f"Invalid username or password. {remaining_attempts} attempt(s) remaining.",
         )
 
-    # Create token
+    # Successful login
+    record_login_attempt(req.username, True)
+    reset_failed_attempts(req.username)
     token = create_access_token(user["id"])
 
     return LoginResponse(
