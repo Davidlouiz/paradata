@@ -93,13 +93,17 @@ const APP = (() => {
                 let message = 'Impossible de vous localiser.';
                 switch (error.code) {
                     case error.PERMISSION_DENIED:
-                        message = 'Vous avez refusé l\'accès à votre position.';
+                        message = 'Accès à la position refusé.\n\n';
+                        if (location.protocol === 'http:' && location.hostname !== 'localhost') {
+                            message += '⚠️ La géolocalisation nécessite HTTPS (connexion sécurisée).\n\n';
+                        }
+                        message += 'Vérifiez les permissions de votre navigateur pour autoriser la géolocalisation.';
                         break;
                     case error.POSITION_UNAVAILABLE:
-                        message = 'Position indisponible.';
+                        message = 'Position indisponible. Vérifiez que le GPS est activé.';
                         break;
                     case error.TIMEOUT:
-                        message = 'La demande de localisation a expiré.';
+                        message = 'La demande de localisation a expiré. Réessayez.';
                         break;
                 }
                 alert(message);
