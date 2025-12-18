@@ -19,6 +19,7 @@ Le système utilise une **clé de sécurité** comme unique preuve d'identité p
 ### Étape 2 : Vérification
 - L'utilisateur doit **retaper la clé en entier** pour prouver qu'il l'a sauvegardée
 - Accepte la clé avec ou sans tirets
+- **Insensible à la casse** (accepte minuscules et majuscules)
 - La vérification est obligatoire pour continuer
 
 ### Étape 3 : Création du compte
@@ -65,7 +66,7 @@ La clé de sécurité permet de **redéfinir complètement le compte**:
 - 128 bits = 2^128 possibilités (sécurité équivalente à AES-128)
 
 ### Validation
-- Normalisation : majuscules, sans tirets ni espaces
+- Normalisation : majuscules, sans tirets ni espaces (insensible à la casse)
 - 32 caractères hexadécimaux exactement [0-9A-F]
 - Vérification bcrypt du hash
 

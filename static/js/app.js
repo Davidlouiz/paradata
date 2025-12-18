@@ -1219,12 +1219,8 @@ const APP = (() => {
                     // Load CAPTCHA for step 3
                     await loadCaptcha();
                 } catch (err) {
-                    // Show error
-                    const errorEl = document.getElementById('register-key-verify-error');
-                    if (errorEl) {
-                        errorEl.textContent = err?.message || 'La clé ne correspond pas';
-                        errorEl.style.display = 'block';
-                    }
+                    // Show toast notification
+                    UI.notify(err?.message || 'La clé ne correspond pas', 'error');
                 }
             });
         }
