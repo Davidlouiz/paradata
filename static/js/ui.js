@@ -330,6 +330,8 @@ const UI = (() => {
         const link = document.getElementById('zone-types-manage-link');
         const modal = document.getElementById('zone-types-modal');
         const modalClose = document.getElementById('zone-types-modal-close');
+        const addBtn = document.getElementById('zone-type-add-btn');
+        let preventCloseUntil = 0;
         if (link && modal) {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -341,9 +343,21 @@ const UI = (() => {
                     hideZoneTypesModal();
                 });
             }
+            if (addBtn) {
+                addBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showAddZoneTypeInlineForm();
+                });
+            }
             // Close modal when clicking outside
             document.addEventListener('click', (e) => {
                 if (!modal || modal.style.display !== 'flex') return;
+                // Don't close if confirmation dialog is open
+                const confirmDialog = document.getElementById('confirm-dialog');
+                if (confirmDialog && confirmDialog.style.display === 'flex') return;
+                // Don't close right after confirmation closes
+                if (Date.now() < preventCloseUntil) return;
                 const content = modal.querySelector('.modal-content');
                 const within = content.contains(e.target) || link.contains(e.target);
                 if (!within) {
@@ -561,26 +575,246 @@ const UI = (() => {
                 const typeName = zt?.name || code;
 
                 // Confirm before deleting
-                if (!await confirm(`Êtes-vous sûr de vouloir supprimer "${typeName}" ?`)) {
+                const confirmed = await confirm(`Êtes-vous sûr de vouloir supprimer "${typeName}" ?`);
+                if (!confirmed) {
                     return;
                 }
+
+                // Set grace period to prevent modal from closing after confirmation
+                preventCloseUntil = Date.now() + 500;
 
                 // Delete the zone type
                 try {
                     const res = await API.deleteZoneType(code);
                     if (res.success) {
                         notify(`Type "${typeName}" supprimé avec succès`, 'success');
-                        // Refresh the modal
+                        await refreshZoneTypesEverywhere();
                         showZoneTypesModal();
                     } else {
                         notify(`Erreur : ${res.error || 'Impossible de supprimer le type'}`, 'error');
+                        showZoneTypesModal();
                     }
                 } catch (err) {
                     const errorMsg = err.data?.detail || err.message || 'Erreur lors de la suppression';
                     notify(errorMsg, 'error');
+                    showZoneTypesModal();
                 }
             });
         });
+
+        // Attach edit button handlers
+        const editButtons = listEl.querySelectorAll('.edit-btn');
+        editButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const item = btn.closest('.zone-type-item');
+                const code = item?.getAttribute('data-zone-type-code');
+                if (!code) return;
+                const zt = zoneTypes.find(t => t.code === code);
+                if (!zt) return;
+                enterEditZoneType(item, zt);
+            });
+        });
+    }
+
+    async function refreshZoneTypesEverywhere() {
+        try {
+            const res = await API.getZoneTypes();
+            if (res?.success && res.data) {
+                if (window.AppState?.setZoneTypes) {
+                    window.AppState.setZoneTypes(res.data);
+                }
+                if (typeof setZoneTypes === 'function') {
+                    setZoneTypes(res.data);
+                }
+            }
+        } catch (e) {
+            // silent
+        }
+    }
+
+    function showAddZoneTypeInlineForm() {
+        const listEl = document.getElementById('zone-types-list');
+        if (!listEl) return;
+        const existing = document.getElementById('zone-type-add-form');
+        if (existing) return; // already shown
+        const form = document.createElement('div');
+        form.id = 'zone-type-add-form';
+        form.className = 'zone-type-item';
+        form.innerHTML = `
+            <div class="zone-type-content" style="width: 100%">
+                <div style="display:flex; gap:8px; margin-bottom:8px;">
+                    <input id="zt-code" class="zt-small" type="text" placeholder="CODE" style="flex:0 0 120px; width:120px; max-width:120px; text-transform: uppercase;" />
+                    <input id="zt-name" type="text" placeholder="Nom" style="flex:1;" />
+                    <input id="zt-color" class="zt-small" type="text" placeholder="#RRGGBB" style="flex:0 0 80px; width:80px; max-width:80px;" />
+                </div>
+                <div>
+                    <textarea id="zt-desc" rows="2" placeholder="Description" style="width:100%; resize: vertical;"></textarea>
+                </div>
+                <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:8px;">
+                    <button id="zt-cancel" class="btn btn-secondary btn-sm">Annuler</button>
+                    <button id="zt-save" class="btn btn-primary btn-sm">Enregistrer</button>
+                </div>
+            </div>
+        `;
+        listEl.prepend(form);
+
+        const saveBtn = form.querySelector('#zt-save');
+        const cancelBtn = form.querySelector('#zt-cancel');
+
+        cancelBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            form.remove();
+        });
+
+        saveBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const code = form.querySelector('#zt-code').value.trim();
+            const name = form.querySelector('#zt-name').value.trim();
+            const color = form.querySelector('#zt-color').value.trim();
+            const description = form.querySelector('#zt-desc').value.trim();
+
+            if (!code || !name || !color) {
+                notify('Code, nom et couleur sont requis', 'error');
+                return;
+            }
+            if (!description) {
+                notify('La description est requise', 'error');
+                return;
+            }
+
+            try {
+                const res = await API.createZoneType({ code, name, color, description });
+                if (res?.success) {
+                    notify('Type ajouté', 'success');
+                    form.remove();
+                    await refreshZoneTypesEverywhere();
+                    // Don't rebuild modal - just remove the form
+                } else {
+                    notify(res?.error || 'Échec de la création', 'error');
+                }
+            } catch (err) {
+                const msg = err?.data?.detail || err?.message || 'Erreur lors de la création';
+                notify(msg, 'error');
+            }
+        });
+    }
+
+
+
+    function enterEditZoneType(item, zt) {
+        if (!item || !zt) return;
+        const content = item.querySelector('.zone-type-content');
+        const actions = item.querySelector('.zone-type-actions');
+        if (!content || !actions) return;
+
+        const originalHTML = content.innerHTML;
+        const originalActionsDisplay = actions.style.display;
+
+        // Determine if code is editable (created < 90 days)
+        let codeEditable = false;
+        try {
+            if (zt.created_at) {
+                const created = new Date(zt.created_at);
+                const now = new Date();
+                const diffDays = (now - created) / (1000 * 60 * 60 * 24);
+                codeEditable = diffDays <= 90;
+            }
+        } catch (e) {
+            codeEditable = false;
+        }
+
+        // Hide actions area to match add form layout
+        actions.style.display = 'none';
+
+        // Build edit form identical to add form layout
+        content.innerHTML = `
+            <div class="zone-type-content" style="width: 100%">
+                <div style="display:flex; gap:8px; margin-bottom:8px;">
+                    <input id="zt-edit-code" class="zt-small" type="text" placeholder="CODE" style="flex:0 0 120px; width:120px; max-width:120px; text-transform: uppercase;" value="${escapeHtml(zt.code)}" ${codeEditable ? '' : 'disabled'} />
+                    <input id="zt-edit-name" type="text" placeholder="Nom" style="flex:1;" value="${escapeHtml(zt.name)}" />
+                    <input id="zt-edit-color" class="zt-small" type="text" placeholder="#RRGGBB" style="flex:0 0 80px; width:80px; max-width:80px;" value="${escapeHtml(zt.color)}" />
+                </div>
+                <div>
+                    <textarea id="zt-edit-desc" rows="2" placeholder="Description" style="width:100%; resize: vertical;">${escapeHtml(zt.description || '')}</textarea>
+                </div>
+                <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:8px;">
+                    <button id="zt-edit-cancel" class="btn btn-secondary btn-sm">Annuler</button>
+                    <button id="zt-edit-save" class="btn btn-primary btn-sm">Enregistrer</button>
+                </div>
+            </div>
+        `;
+
+        const onCancel = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            content.innerHTML = originalHTML;
+            actions.style.display = originalActionsDisplay || '';
+            // Don't call showZoneTypesModal - just restore the item view
+        };
+
+        const onSave = async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const name = item.querySelector('#zt-edit-name')?.value?.trim();
+            const color = item.querySelector('#zt-edit-color')?.value?.trim();
+            const description = item.querySelector('#zt-edit-desc')?.value?.trim();
+            const newCodeVal = item.querySelector('#zt-edit-code')?.value?.trim();
+            if (!name || !color) {
+                notify('Nom et couleur sont requis', 'error');
+                return;
+            }
+            if (!description) {
+                notify('La description est requise', 'error');
+                return;
+            }
+            const payload = { name, color, description };
+            if (codeEditable && newCodeVal && newCodeVal.toUpperCase() !== zt.code) {
+                payload.code = newCodeVal.toUpperCase();
+            }
+            try {
+                const res = await API.updateZoneType(zt.code, payload);
+                if (res?.success) {
+                    notify('Type mis à jour', 'success');
+                    await refreshZoneTypesEverywhere();
+                    // Update the zone type object with new values
+                    const updatedZt = zoneTypes.find(t => t.code === (payload.code || zt.code));
+                    if (updatedZt) {
+                        // Restore original view with updated data
+                        content.innerHTML = `
+                            <div class="zone-type-name">${updatedZt.name}</div>
+                            <div class="zone-type-desc">${updatedZt.description || '(pas de description)'}</div>
+                        `;
+                        actions.style.display = originalActionsDisplay || '';
+                        // Update data attribute if code changed
+                        if (payload.code) {
+                            item.setAttribute('data-zone-type-code', payload.code);
+                        }
+                    }
+                } else {
+                    notify(res?.error || 'Échec de la mise à jour', 'error');
+                }
+            } catch (err) {
+                const msg = err?.data?.detail || err?.message || 'Erreur lors de la mise à jour';
+                notify(msg, 'error');
+            }
+        };
+
+        item.querySelector('#zt-edit-cancel')?.addEventListener('click', onCancel);
+        item.querySelector('#zt-edit-save')?.addEventListener('click', onSave);
+    }
+
+    function escapeHtml(str) {
+        if (str === undefined || str === null) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 
     function hideZoneTypesModal() {
@@ -614,6 +848,5 @@ const UI = (() => {
         setZoneTypesManageLinkVisible,
         showZoneTypesModal,
         hideZoneTypesModal,
-
     };
 })();

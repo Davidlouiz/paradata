@@ -147,6 +147,16 @@ const API = {
         return res;
     },
 
+    async createZoneType(payload) {
+        const res = await this.request('POST', '/zone-types', payload);
+        return res;
+    },
+
+    async updateZoneType(code, payload) {
+        const res = await this.request('PUT', `/zone-types/${encodeURIComponent(code)}`, payload);
+        return res;
+    },
+
     async deleteZoneType(code) {
         const res = await this.request('DELETE', `/zone-types/${code}`);
         return res;
