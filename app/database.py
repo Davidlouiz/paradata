@@ -29,16 +29,25 @@ def init_db():
             name TEXT NOT NULL,
             description TEXT,
             color_hex TEXT NOT NULL,
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            deleted_by INTEGER,
+            deleted_at TIMESTAMP,
+            FOREIGN KEY (deleted_by) REFERENCES users(id)
         )
         """
     )
 
-    # Backfill column for existing databases lacking description
+    # Backfill columns for existing databases
     cursor.execute("PRAGMA table_info(zone_types)")
     zone_type_columns = [row[1] for row in cursor.fetchall()]
     if "description" not in zone_type_columns:
         cursor.execute("ALTER TABLE zone_types ADD COLUMN description TEXT")
+    if "deleted_by" not in zone_type_columns:
+        cursor.execute(
+            "ALTER TABLE zone_types ADD COLUMN deleted_by INTEGER REFERENCES users(id)"
+        )
+    if "deleted_at" not in zone_type_columns:
+        cursor.execute("ALTER TABLE zone_types ADD COLUMN deleted_at TIMESTAMP")
 
     # Backfill descriptions for existing rows (overwrite to ensure wording is current)
     cursor.execute(

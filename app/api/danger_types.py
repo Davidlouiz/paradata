@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from app.database import get_db
+from app.api.auth import require_login
 
 router = APIRouter(prefix="/zone-types", tags=["zone-types"])
 
@@ -10,7 +11,7 @@ router = APIRouter(prefix="/zone-types", tags=["zone-types"])
 def get_zone_types(db=Depends(get_db)):
     """Lister les types de zones disponibles (code/nom/couleur/description)."""
     cursor = db.execute(
-        "SELECT code, name, description, color_hex FROM zone_types ORDER BY name"
+        "SELECT code, name, description, color_hex FROM zone_types WHERE deleted_at IS NULL ORDER BY name"
     )
     types = cursor.fetchall()
 
@@ -29,18 +30,20 @@ def get_zone_types(db=Depends(get_db)):
 
 
 @router.delete("/{zone_type_code}")
-def delete_zone_type(zone_type_code: str, db=Depends(get_db)):
-    """Supprimer un type de zone (protégé si des zones l'utilisent)."""
-    # D'abord, récupérer l'ID du type de zone
+def delete_zone_type(
+    zone_type_code: str, user: dict = Depends(require_login), db=Depends(get_db)
+):
+    """Supprimer un type de zone (protégé si des zones l'utilisent). Authentification requise."""
+    # D'abord, récupérer l'ID du type de zone (uniquement les non supprimés)
     cursor = db.execute(
-        "SELECT id FROM zone_types WHERE code = ?",
+        "SELECT id FROM zone_types WHERE code = ? AND deleted_at IS NULL",
         (zone_type_code,),
     )
     type_row = cursor.fetchone()
     if not type_row:
         raise HTTPException(
             status_code=404,
-            detail=f"Type de zone '{zone_type_code}' introuvable.",
+            detail=f"Type de zone '{zone_type_code}' introuvable ou déjà supprimé.",
         )
     zone_type_id = type_row[0]
 
@@ -65,9 +68,16 @@ def delete_zone_type(zone_type_code: str, db=Depends(get_db)):
             detail=detail_msg,
         )
 
-    # Supprimer le type de zone
+    # Soft delete du type de zone
     try:
-        db.execute("DELETE FROM zone_types WHERE code = ?", (zone_type_code,))
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc)
+        user_id = user["id"]
+        db.execute(
+            "UPDATE zone_types SET deleted_at = ?, deleted_by = ? WHERE code = ?",
+            (now, user_id, zone_type_code),
+        )
         db.commit()
         return {"success": True, "message": "Type de zone supprimé avec succès"}
     except Exception as e:
