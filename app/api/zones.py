@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, status, Query, Depends
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 import json
-from shapely.geometry import shape
+from shapely.geometry import shape, Point
 
 from app.database import get_db, dict_from_row
 from app.models import (
@@ -13,6 +13,7 @@ from app.models import (
     SingleZoneResponse,
     CheckoutResponse,
     BoundingBox,
+    ZonesByCoordinateResponse,
 )
 from app.services.quota import (
     check_daily_quota,
@@ -326,6 +327,54 @@ async def list_zones(
     conn.close()
 
     return ZonesListResponse(success=True, data=zones)
+
+
+@router.get("/by-coordinate", response_model=ZonesByCoordinateResponse)
+async def get_zones_by_coordinate(
+    lat: float = Query(..., description="Latitude"),
+    lng: float = Query(..., description="Longitude"),
+):
+    """Obtenir les zones qui couvrent une coordonnée GPS donnée (endpoint public)."""
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Créer le point de coordonnée
+    try:
+        point = Point(lng, lat)  # Shapely utilise (lng, lat) = (x, y)
+    except Exception as e:
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Coordonnées invalides: {str(e)}",
+        )
+
+    # Récupérer toutes les zones non supprimées
+    cursor.execute("""
+        SELECT * FROM zones
+        WHERE deleted_at IS NULL
+        ORDER BY created_at DESC
+    """)
+
+    rows = cursor.fetchall()
+    zones = []
+
+    # Filtrer les zones qui contiennent le point
+    for row in rows:
+        row_dict = dict_from_row(row)
+        try:
+            geometry_json = json.loads(row_dict["geometry"])
+            geometry = shape(geometry_json)
+
+            # Vérifier si le point est dans la géométrie
+            if geometry.contains(point):
+                zones.append(serialize_zone(row_dict, conn))
+        except Exception:
+            # Ignorer les géométries invalides
+            continue
+
+    conn.close()
+
+    return ZonesByCoordinateResponse(success=True, data=zones)
 
 
 @router.get("/{object_id}", response_model=SingleZoneResponse)

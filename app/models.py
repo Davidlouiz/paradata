@@ -92,3 +92,9 @@ class BoundingBox(BaseModel):
     minLng: float
     maxLat: float
     maxLng: float
+
+
+class ZonesByCoordinateResponse(BaseModel):
+    success: bool
+    data: List[ZoneResponse]
+    error: Optional[str] = None
