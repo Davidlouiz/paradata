@@ -1036,10 +1036,98 @@ const APP = (() => {
                 e.preventDefault();
                 const loginForm = document.getElementById('login-form');
                 const registerForm = document.getElementById('register-form');
+                const recoverForm = document.getElementById('recover-form');
                 if (loginForm) loginForm.style.display = 'block';
                 if (registerForm) registerForm.style.display = 'none';
+                if (recoverForm) recoverForm.style.display = 'none';
                 const userEl = document.getElementById('login-username');
                 userEl?.focus();
+            });
+        }
+
+        // ========== PASSWORD RECOVERY FLOW ==========
+
+        const btnToggleRecover = document.getElementById('btn-toggle-recover');
+        if (btnToggleRecover) {
+            btnToggleRecover.addEventListener('click', (e) => {
+                e.preventDefault();
+                const loginForm = document.getElementById('login-form');
+                const registerForm = document.getElementById('register-form');
+                const recoverForm = document.getElementById('recover-form');
+                if (loginForm) loginForm.style.display = 'none';
+                if (registerForm) registerForm.style.display = 'none';
+                if (recoverForm) recoverForm.style.display = 'block';
+                const usernameEl = document.getElementById('recover-username');
+                usernameEl?.focus();
+            });
+        }
+
+        const btnRecoverBack = document.getElementById('btn-recover-back');
+        if (btnRecoverBack) {
+            btnRecoverBack.addEventListener('click', (e) => {
+                e.preventDefault();
+                const loginForm = document.getElementById('login-form');
+                const recoverForm = document.getElementById('recover-form');
+                if (loginForm) loginForm.style.display = 'block';
+                if (recoverForm) recoverForm.style.display = 'none';
+                const userEl = document.getElementById('login-username');
+                userEl?.focus();
+            });
+        }
+
+        const recoverForm = document.getElementById('recover-form');
+        if (recoverForm) {
+            recoverForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const recoveryKey = document.getElementById('recover-key')?.value.trim();
+                const newUsername = document.getElementById('recover-new-username')?.value.trim();
+                const newPassword = document.getElementById('recover-new-password')?.value;
+                const confirmPassword = document.getElementById('recover-new-password-confirm')?.value;
+
+                if (!recoveryKey || !newUsername || !newPassword) {
+                    UI.showAuthMessage('Tous les champs sont requis', true);
+                    return;
+                }
+
+                if (newPassword !== confirmPassword) {
+                    UI.showAuthMessage('Les mots de passe ne correspondent pas', true);
+                    return;
+                }
+
+                if (newPassword.length < 6) {
+                    UI.showAuthMessage('Le mot de passe doit contenir au moins 6 caractères', true);
+                    return;
+                }
+
+                if (newUsername.length < 3) {
+                    UI.showAuthMessage('Le nom d\'utilisateur doit contenir au moins 3 caractères', true);
+                    return;
+                }
+
+                try {
+                    const userData = await API.recoverPassword(recoveryKey, newUsername, newPassword);
+
+                    AppState.setCurrentUser(userData);
+                    UI.notify('Compte récupéré! Pseudo et mot de passe redéfinis. Vous êtes connecté.', 'success');
+                    await refreshQuotaPanel();
+
+                    const state = AppState.getState();
+                    if (state.mode !== 'VIEW') {
+                        await cancelEdit(true);
+                    }
+                    AppState.deselectObject();
+                    restyleAllLayers();
+
+                    UI.hideLoginModal();
+
+                    // Clear form
+                    document.getElementById('recover-key').value = '';
+                    document.getElementById('recover-new-username').value = '';
+                    document.getElementById('recover-new-password').value = '';
+                    document.getElementById('recover-new-password-confirm').value = '';
+                } catch (err) {
+                    UI.showAuthMessage(err?.message || 'Récupération impossible. Vérifiez votre clé.', true);
+                }
             });
         }
 

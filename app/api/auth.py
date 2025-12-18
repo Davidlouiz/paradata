@@ -18,6 +18,7 @@ from app.models import (
     RegisterVerifyKeyRequest,
     RegisterVerifyKeyResponse,
     RegisterCompleteRequest,
+    RecoverPasswordRequest,
 )
 from app.services.quota import (
     get_daily_usage_breakdown,
@@ -441,6 +442,83 @@ async def register_complete(req: RegisterCompleteRequest, request: Request):
         data={
             "id": user_id,
             "username": req.username,
+            "token": token,
+            "created_at": datetime.utcnow().isoformat(),
+        },
+    )
+
+
+@router.post("/recover-password", response_model=LoginResponse)
+async def recover_password(req: RecoverPasswordRequest):
+    """
+    Reset account (username + password) using recovery key.
+    The recovery key is the unique identifier - proof of account ownership.
+    Allows changing both username and password.
+    """
+
+    def _reset_account():
+        conn = get_db()
+        cursor = conn.cursor()
+
+        # Normalize and verify the recovery key by scanning all users
+        normalized_key = _normalize_recovery_key(req.recovery_key)
+
+        # Find user by recovery key hash
+        cursor.execute("SELECT * FROM users WHERE recovery_key_hash IS NOT NULL")
+        rows = cursor.fetchall()
+
+        user = None
+        for row in rows:
+            user_data = dict_from_row(row)
+            try:
+                if bcrypt.checkpw(
+                    normalized_key.encode(), user_data["recovery_key_hash"].encode()
+                ):
+                    user = user_data
+                    break
+            except Exception:
+                continue
+
+        if not user:
+            conn.close()
+            return {"error": "Clé de récupération invalide"}
+
+        # Check if new username is already taken (by another user)
+        cursor.execute(
+            "SELECT id FROM users WHERE username = ? AND id != ?",
+            (req.new_username, user["id"]),
+        )
+        if cursor.fetchone():
+            conn.close()
+            return {"error": "Ce nom d'utilisateur est déjà utilisé"}
+
+        # Update both username and password
+        new_password_hash = get_password_hash(req.new_password)
+        cursor.execute(
+            "UPDATE users SET username = ?, password_hash = ? WHERE id = ?",
+            (req.new_username, new_password_hash, user["id"]),
+        )
+        conn.commit()
+        conn.close()
+
+        return {"user_id": user["id"], "username": req.new_username}
+
+    result = await asyncio.to_thread(_reset_account)
+
+    if "error" in result:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result["error"],
+        )
+
+    # Create token for automatic login
+    token = create_access_token(result["user_id"])
+
+    return LoginResponse(
+        success=True,
+        data={
+            "id": result["user_id"],
+            "username": result["username"],
             "token": token,
             "created_at": datetime.utcnow().isoformat(),
         },

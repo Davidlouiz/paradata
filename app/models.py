@@ -53,6 +53,14 @@ class RegisterCompleteRequest(BaseModel):
     captcha_answer: int
 
 
+class RecoverPasswordRequest(BaseModel):
+    """Reset account (username + password) using recovery key as proof of identity"""
+
+    recovery_key: str
+    new_username: str
+    new_password: str
+
+
 class LoginResponse(BaseModel):
     success: bool
     data: Optional[dict] = None

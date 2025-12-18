@@ -121,6 +121,23 @@ const API = {
         return res.data;
     },
 
+    async recoverPassword(recovery_key, new_username, new_password) {
+        /**
+         * Recover account using recovery key
+         * Allows resetting both username and password
+         * Recovery key is the unique identifier and proof of ownership
+         * Returns: { id, username, token, created_at }
+         */
+        const res = await this.request('POST', '/auth/recover-password', {
+            recovery_key,
+            new_username,
+            new_password,
+        });
+        this.token = res.data.token;
+        localStorage.setItem('token', this.token);
+        return res.data;
+    },
+
     async getCaptchaChallenge() {
         const res = await this.request('GET', '/captcha/challenge');
         return res; // { token, question }

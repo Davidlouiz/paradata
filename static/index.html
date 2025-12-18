@@ -191,6 +191,38 @@
                     <button type="submit" class="btn btn-primary" id="btn-login">Connexion</button>
                     <button type="button" class="btn btn-secondary" id="btn-toggle-register">Créer un compte</button>
                 </div>
+                <div style="text-align: center; margin-top: 12px;">
+                    <a href="#" id="btn-toggle-recover" style="font-size: 14px; color: #666;">Mot de passe oublié?</a>
+                </div>
+            </form>
+            <form id="recover-form" style="display: none;">
+                <h3>Récupération de compte</h3>
+                <p style="color: #666; font-size: 14px; margin-bottom: 16px;">
+                    Utilisez votre clé de sécurité pour redéfinir votre compte (pseudo et mot de passe).
+                </p>
+                <div class="form-group">
+                    <label for="recover-key">Clé de sécurité:</label>
+                    <input type="text" id="recover-key" required placeholder="AAAA-BBBB-CCCC-..."
+                        style="font-family: monospace; letter-spacing: 1px;" autocomplete="off">
+                    <small style="color: #999;">La clé affichée lors de la création du compte</small>
+                </div>
+                <div class="form-group">
+                    <label for="recover-new-username">Nouveau nom d'utilisateur:</label>
+                    <input type="text" id="recover-new-username" required>
+                    <small style="color: #999;">Vous pouvez garder le même ou en choisir un nouveau</small>
+                </div>
+                <div class="form-group">
+                    <label for="recover-new-password">Nouveau mot de passe:</label>
+                    <input type="password" id="recover-new-password" required>
+                </div>
+                <div class="form-group">
+                    <label for="recover-new-password-confirm">Confirmer:</label>
+                    <input type="password" id="recover-new-password-confirm" required>
+                </div>
+                <div id="recover-buttons" class="tabs">
+                    <button type="submit" class="btn btn-primary" id="btn-recover">Récupérer le compte</button>
+                    <button type="button" class="btn btn-secondary" id="btn-recover-back">Retour</button>
+                </div>
             </form>
             <form id="register-form" style="display: none;">
                 <!-- Step 1: Generate Recovery Key -->
@@ -200,16 +232,19 @@
                         ⚠️ Cette clé est votre preuve d'identité.
                         <br>Sans elle, votre pseudo et votre historique seront perdus définitivement.
                     </p>
-                    <div id="register-key-display" style="display: none; background: #f5f5f5; padding: 16px; border-radius: 4px; margin-bottom: 16px;">
+                    <div id="register-key-display"
+                        style="display: none; background: #f5f5f5; padding: 16px; border-radius: 4px; margin-bottom: 16px;">
                         <p style="font-size: 12px; color: #666; margin-bottom: 8px;">Votre clé de sécurité :</p>
-                        <p id="register-key-text" style="font-family: monospace; font-weight: bold; font-size: 14px; letter-spacing: 1px; word-break: break-all; margin-bottom: 12px;">
+                        <p id="register-key-text"
+                            style="font-family: monospace; font-weight: bold; font-size: 14px; letter-spacing: 1px; word-break: break-all; margin-bottom: 12px;">
                             Génération...
                         </p>
                         <div style="display: flex; gap: 8px;">
                             <button type="button" id="btn-copy-key" class="btn btn-sm btn-secondary" style="flex: 1;">
                                 📋 Copier
                             </button>
-                            <button type="button" id="btn-download-key" class="btn btn-sm btn-secondary" style="flex: 1;">
+                            <button type="button" id="btn-download-key" class="btn btn-sm btn-secondary"
+                                style="flex: 1;">
                                 💾 Télécharger
                             </button>
                         </div>
@@ -234,7 +269,7 @@
                         Veuillez retaper votre clé de sécurité intégralement (avec ou sans tirets) :
                     </p>
                     <div class="form-group">
-                        <input type="text" id="register-key-verify" placeholder="AAAA-BBBB-CCCC-..." required 
+                        <input type="text" id="register-key-verify" placeholder="AAAA-BBBB-CCCC-..." required
                             style="font-family: monospace; letter-spacing: 1px;">
                         <small id="register-key-verify-hint" style="color: #999;">Sensible à la casse</small>
                     </div>
