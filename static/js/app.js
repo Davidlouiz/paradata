@@ -1256,6 +1256,14 @@ const APP = (() => {
                     UI.showAuthMessage('Les mots de passe ne correspondent pas', true);
                     return;
                 }
+                if (password.length < 6) {
+                    UI.showAuthMessage('Le mot de passe doit contenir au moins 6 caractères', true);
+                    return;
+                }
+                if (username.length < 3) {
+                    UI.showAuthMessage('Le nom d\'utilisateur doit contenir au moins 3 caractères', true);
+                    return;
+                }
                 if (isNaN(captchaAnswer) || !window._currentCaptchaToken) {
                     UI.showAuthMessage('Veuillez résoudre le CAPTCHA', true);
                     return;

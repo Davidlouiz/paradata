@@ -472,8 +472,10 @@ const UI = (() => {
         if (map) map.style.pointerEvents = 'none';
         const loginForm = document.getElementById('login-form');
         const registerForm = document.getElementById('register-form');
+        const recoverForm = document.getElementById('recover-form');
         if (loginForm) loginForm.style.display = 'block';
         if (registerForm) registerForm.style.display = 'none';
+        if (recoverForm) recoverForm.style.display = 'none';
         const authMsg = document.getElementById('auth-message');
         if (authMsg) authMsg.style.display = 'none';
         const userEl = document.getElementById('login-username');
