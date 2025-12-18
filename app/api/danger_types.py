@@ -164,7 +164,7 @@ def update_zone_type(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Le code doit contenir uniquement des lettres, chiffres ou underscores (A-Z, 0-9, _)",
             )
-        # Autoriser seulement si créé il y a moins de ~3 mois (90 jours)
+        # Autoriser seulement si créé il y a moins de 7 jours
         from datetime import datetime, timedelta
 
         try:
@@ -173,10 +173,10 @@ def update_zone_type(
         except Exception:
             created_dt = None
         now = datetime.now()
-        if not created_dt or (now - created_dt) > timedelta(days=90):
+        if not created_dt or (now - created_dt) > timedelta(days=7):
             raise HTTPException(
                 status_code=400,
-                detail="La modification du code n'est autorisée que pendant les 3 premiers mois suivant la création",
+                detail="La modification du code n'est autorisée que pendant les 7 premiers jours suivant la création",
             )
         # Unicité du code (quel que soit l'état supprimé ou non)
         other = db.execute(

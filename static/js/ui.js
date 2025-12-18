@@ -721,7 +721,7 @@ const UI = (() => {
                 const created = new Date(zt.created_at);
                 const now = new Date();
                 const diffDays = (now - created) / (1000 * 60 * 60 * 24);
-                codeEditable = diffDays <= 90;
+                codeEditable = diffDays <= 7;
             }
         } catch (e) {
             codeEditable = false;
