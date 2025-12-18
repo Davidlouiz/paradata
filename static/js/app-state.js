@@ -31,6 +31,8 @@ const AppState = (() => {
 
         // Dessin
         drawnGeometry: null, // GeoJSON geometry en cours de dessin
+        isDraggingVertex: false, // Flag pour bloquer les clics lors du déplacement d'un sommet
+        justReleasedVertex: false, // Flag pour bloquer la sélection d'autres zones après relâchement d'un vertex
 
         // Quota
         remainingQuota: null,
@@ -292,6 +294,22 @@ const AppState = (() => {
         return Math.max(0, Math.ceil(diffMs / 1000));
     }
 
+    /**
+     * Définir le flag de déplacement de sommet
+     */
+    function setDraggingVertex(isDragging) {
+        state.isDraggingVertex = isDragging;
+        notify();
+    }
+
+    /**
+     * Définir le flag indiquant qu'un vertex vient d'être relâché
+     */
+    function setJustReleasedVertex(justReleased) {
+        state.justReleasedVertex = justReleased;
+        notify();
+    }
+
     return {
         subscribe,
         getState,
@@ -311,6 +329,8 @@ const AppState = (() => {
         refreshLockStatus,
         setRemainingQuota,
         setZoneTypes,
+        setDraggingVertex,
+        setJustReleasedVertex,
 
         canEditObject,
         canDraw,

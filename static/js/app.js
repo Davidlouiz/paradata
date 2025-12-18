@@ -537,6 +537,17 @@ const APP = (() => {
         if (!e?.latlng) return;
         const state = AppState.getState();
 
+        // Bloquer les clics pendant le déplacement d'un sommet
+        if (state.isDraggingVertex) {
+            return;
+        }
+
+        // Bloquer les clics immédiatement après le relâchement d'un sommet
+        // pour éviter que la souris ne sélectionne un autre polygone
+        if (state.justReleasedVertex) {
+            return;
+        }
+
         if (state.mode === 'DRAW') {
             return; // Ne pas interrompre le dessin
         }

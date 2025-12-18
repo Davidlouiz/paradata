@@ -106,6 +106,7 @@ const DRAW = (() => {
                 });
 
                 layer.on('pm:markerdragstart', () => {
+                    AppState.setDraggingVertex(true);
                     if (layer._desiredColor) {
                         layer.setStyle({ color: layer._desiredColor });
                     }
@@ -118,6 +119,12 @@ const DRAW = (() => {
                 });
 
                 layer.on('pm:markerdragend', () => {
+                    AppState.setDraggingVertex(false);
+                    // Empêcher la sélection d'autres zones pour ~100ms après relâchement
+                    AppState.setJustReleasedVertex(true);
+                    setTimeout(() => {
+                        AppState.setJustReleasedVertex(false);
+                    }, 100);
                     if (layer._desiredColor) {
                         layer.setStyle({ color: layer._desiredColor });
                     }
@@ -282,6 +289,11 @@ const DRAW = (() => {
         });
 
         polyLayer.on('pm:markerdragend', () => {
+            // Empêcher la sélection d'autres zones pour ~100ms après relâchement
+            AppState.setJustReleasedVertex(true);
+            setTimeout(() => {
+                AppState.setJustReleasedVertex(false);
+            }, 100);
             if (polyLayer._desiredColor) {
                 polyLayer.setStyle({ color: polyLayer._desiredColor });
             }
