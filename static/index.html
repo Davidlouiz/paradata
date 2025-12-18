@@ -30,7 +30,7 @@
     <div class="top-bar">
         <div class="top-bar-left">
             <h1>Zones Parapente</h1>
-            <p class="top-bar-subtitle">Carte collaborative des zones sensibles en parapente.</p>
+            <p class="top-bar-subtitle">Carte des zones sensibles en parapente, collaborative et en open data.</p>
         </div>
         <div class="top-bar-center">
             <span id="status-indicator" class="status-indicator" style="display: none;"></span>
@@ -208,9 +208,11 @@
                 <div class="form-group">
                     <label for="captcha-answer">Vérification (résolvez l'opération):</label>
                     <div style="display: flex; gap: 8px; align-items: center;">
-                        <span id="captcha-question" style="font-weight: bold; min-width: 100px; font-size: 16px;">Chargement...</span>
+                        <span id="captcha-question"
+                            style="font-weight: bold; min-width: 100px; font-size: 16px;">Chargement...</span>
                         <input type="number" id="captcha-answer" required style="flex: 1;">
-                        <button type="button" id="btn-refresh-captcha" class="btn btn-secondary" style="padding: 6px 12px;" title="Recharger le CAPTCHA">🔄</button>
+                        <button type="button" id="btn-refresh-captcha" class="btn btn-secondary"
+                            style="padding: 6px 12px;" title="Recharger le CAPTCHA">🔄</button>
                     </div>
                 </div>
                 <div id="register-buttons" class="tabs">
