@@ -1551,7 +1551,7 @@ const APP = (() => {
         // Valider la géométrie
         const geometry = DRAW.getDrawnGeometry();
         if (!DRAW.isValidDrawing() || !geometry) {
-            UI.notify('Veuillez dessiner une zone valide (au moins 3 points)', 'error');
+            UI.notify('Zone invalide: vérifiez qu\'il n\'y a pas de sommets dupliqués ou d\'auto-intersections', 'error');
             return;
         }
 

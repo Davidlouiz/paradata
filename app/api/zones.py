@@ -96,6 +96,72 @@ def _geometry_intersects_existing(
     return False
 
 
+def _validate_geometry_structure(geom_json: dict) -> tuple[bool, str | None]:
+    """Valider la structure de la géométrie (pas de sommets dupliqués, géométrie valide).
+
+    Returns:
+        (is_valid, error_message) - error_message is None if valid
+    """
+    try:
+        geom = shape(geom_json)
+
+        # Check if geometry is valid according to Shapely
+        if not geom.is_valid:
+            return (
+                False,
+                "Géométrie invalide : auto-intersections ou structure incorrecte détectée",
+            )
+
+        # For Polygon, check for duplicate vertices (except closing vertex)
+        if geom_json.get("type") == "Polygon":
+            coords = geom_json.get("coordinates", [[]])[0]
+            if len(coords) < 4:
+                return False, "Polygone invalide : au moins 3 sommets distincts requis"
+
+            # Check for duplicate vertices (excluding the last closing vertex)
+            unique_coords = set()
+            for i in range(len(coords) - 1):  # Exclude last coordinate (closing)
+                coord_tuple = tuple(coords[i])
+                if coord_tuple in unique_coords:
+                    return (
+                        False,
+                        "Géométrie invalide : sommets dupliqués détectés (polygone avec auto-contact)",
+                    )
+                unique_coords.add(coord_tuple)
+
+            # Verify that last coordinate closes the polygon
+            if coords[0] != coords[-1]:
+                return (
+                    False,
+                    "Polygone invalide : le dernier point doit être égal au premier",
+                )
+
+        # For MultiPolygon, validate each polygon
+        elif geom_json.get("type") == "MultiPolygon":
+            for poly_coords in geom_json.get("coordinates", []):
+                ring = poly_coords[0]
+                if len(ring) < 4:
+                    return (
+                        False,
+                        "MultiPolygon invalide : chaque polygone doit avoir au moins 3 sommets distincts",
+                    )
+
+                unique_coords = set()
+                for i in range(len(ring) - 1):
+                    coord_tuple = tuple(ring[i])
+                    if coord_tuple in unique_coords:
+                        return (
+                            False,
+                            "Géométrie invalide : sommets dupliqués détectés dans un des polygones",
+                        )
+                    unique_coords.add(coord_tuple)
+
+        return True, None
+
+    except Exception as e:
+        return False, f"Erreur de validation de géométrie : {str(e)}"
+
+
 LOCK_DURATION_MINUTES = 15
 
 # Grace windows after creation (free actions by creator)
@@ -419,6 +485,14 @@ async def create_zone(req: ZoneCreate, user: dict = Depends(require_login)):
             detail="Géométrie invalide : doit être un Polygon ou MultiPolygon",
         )
 
+    # Validate geometry structure (no duplicate vertices, valid shape)
+    is_valid, error_msg = _validate_geometry_structure(req.geometry)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=error_msg,
+        )
+
     conn = get_db()
     zone_type_id = _get_zone_type_id(conn, req.zone_type)
 
@@ -647,6 +721,15 @@ async def update_zone(
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Géométrie invalide",
+            )
+
+        # Validate geometry structure (no duplicate vertices, valid shape)
+        is_valid, error_msg = _validate_geometry_structure(req.geometry)
+        if not is_valid:
+            conn.close()
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_msg,
             )
         # Prevent overlapping zones of the same type, excluding self
         if _geometry_intersects_existing(

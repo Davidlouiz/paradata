@@ -374,6 +374,13 @@ const DRAW = (() => {
     }
 
     /**
+     * Vérifier si deux coordonnées sont identiques
+     */
+    function coordsEqual(coord1, coord2) {
+        return coord1[0] === coord2[0] && coord1[1] === coord2[1];
+    }
+
+    /**
      * Valider le dessin (au moins 3 points pour un polygone)
      */
     function isValidDrawing() {
@@ -381,7 +388,25 @@ const DRAW = (() => {
         if (!geom || geom.type !== 'Polygon') return false;
         // Un polygone valide a au moins 4 coordonnées (3 points + fermeture)
         const coords = geom.coordinates[0];
-        return coords && coords.length >= 4;
+        if (!coords || coords.length < 4) return false;
+
+        // Vérifier qu'il n'y a pas de sommets dupliqués (sauf le dernier qui doit être égal au premier)
+        for (let i = 0; i < coords.length - 1; i++) {
+            for (let j = i + 1; j < coords.length - 1; j++) {
+                if (coordsEqual(coords[i], coords[j])) {
+                    console.warn('Géométrie invalide: sommets dupliqués détectés aux positions', i, 'et', j);
+                    return false;
+                }
+            }
+        }
+
+        // Vérifier que le dernier point ferme bien le polygone
+        if (!coordsEqual(coords[0], coords[coords.length - 1])) {
+            console.warn('Géométrie invalide: le polygone n\'est pas fermé');
+            return false;
+        }
+
+        return true;
     }
 
     /**
