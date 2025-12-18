@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 import jwt
 import bcrypt
+import secrets
 
 from app.database import get_db, dict_from_row
 import asyncio
@@ -12,6 +13,11 @@ from app.models import (
     AuthMeResponse,
     UserResponse,
     RegisterRequest,
+    RegisterInitRequest,
+    RegisterInitResponse,
+    RegisterVerifyKeyRequest,
+    RegisterVerifyKeyResponse,
+    RegisterCompleteRequest,
 )
 from app.services.quota import (
     get_daily_usage_breakdown,
@@ -252,6 +258,182 @@ async def register(req: RegisterRequest, request: Request):
         )
 
     # Return token
+    token = create_access_token(user_id)
+
+    return LoginResponse(
+        success=True,
+        data={
+            "id": user_id,
+            "username": req.username,
+            "token": token,
+            "created_at": datetime.utcnow().isoformat(),
+        },
+    )
+
+
+# ============ RECOVERY KEY MANAGEMENT ============
+# In-memory session storage for recovery keys during account creation
+# Key: session_id, Value: { "key_raw": "...", "key_hash": "...", "expires_at": timestamp }
+_recovery_key_sessions = {}
+
+
+def _generate_recovery_key() -> str:
+    """Generate a 128-bit recovery key, returned as 32 hex chars, formatted as XXXX-XXXX-..."""
+    random_bytes = secrets.token_bytes(16)  # 128 bits
+    hex_key = random_bytes.hex().upper()  # 32 hex chars
+    # Format as XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX (8 groups of 4)
+    formatted = "-".join([hex_key[i : i + 4] for i in range(0, 32, 4)])
+    return formatted
+
+
+def _normalize_recovery_key(key: str) -> str:
+    """Remove dashes and spaces, convert to uppercase."""
+    return key.replace("-", "").replace(" ", "").upper()
+
+
+def _hash_recovery_key(key: str) -> str:
+    """Hash recovery key using bcrypt (same as password)."""
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(key.encode(), salt).decode()
+
+
+def _cleanup_expired_sessions():
+    """Remove expired recovery key sessions."""
+    now = datetime.utcnow()
+    expired_keys = [
+        sid
+        for sid, data in _recovery_key_sessions.items()
+        if datetime.fromisoformat(data["expires_at"]) < now
+    ]
+    for sid in expired_keys:
+        del _recovery_key_sessions[sid]
+
+
+@router.post("/register/init", response_model=RegisterInitResponse)
+async def register_init(req: RegisterInitRequest):
+    """
+    Step 1: Generate a recovery key for account creation.
+    Returns a unique session ID and the recovery key to display.
+    """
+    _cleanup_expired_sessions()
+
+    # Generate recovery key
+    recovery_key = _generate_recovery_key()
+    recovery_key_normalized = _normalize_recovery_key(recovery_key)
+    recovery_key_hash = _hash_recovery_key(recovery_key_normalized)
+
+    # Create session
+    session_id = secrets.token_urlsafe(32)
+    _recovery_key_sessions[session_id] = {
+        "key_raw": recovery_key_normalized,  # Store normalized form
+        "key_hash": recovery_key_hash,
+        "expires_at": (datetime.utcnow() + timedelta(minutes=10)).isoformat(),
+    }
+
+    return RegisterInitResponse(
+        success=True,
+        data={
+            "session_id": session_id,
+            "recovery_key": recovery_key,  # Display formatted version
+        },
+    )
+
+
+@router.post("/register/verify-key", response_model=RegisterVerifyKeyResponse)
+async def register_verify_key(req: RegisterVerifyKeyRequest):
+    """
+    Step 2: Verify that the user correctly entered the recovery key.
+    This ensures they saved it before proceeding.
+    """
+    _cleanup_expired_sessions()
+
+    session_id = req.session_id
+
+    if session_id not in _recovery_key_sessions:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Recovery key session expired or invalid",
+        )
+
+    session_data = _recovery_key_sessions[session_id]
+    user_key = _normalize_recovery_key(req.recovery_key)
+
+    if user_key != session_data["key_raw"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Recovery key does not match. Please try again.",
+        )
+
+    # Key verified! Session is now ready for final registration
+    return RegisterVerifyKeyResponse(
+        success=True,
+        data={},
+    )
+
+
+@router.post("/register/complete", response_model=LoginResponse)
+async def register_complete(req: RegisterCompleteRequest, request: Request):
+    """
+    Step 3: Complete account creation with username, password, and verified recovery key.
+    The recovery key must have been verified in step 2.
+    """
+    _cleanup_expired_sessions()
+
+    # Verify CAPTCHA
+    client_ip = request.client.host
+    if not verify_captcha(req.captcha_token, req.captcha_answer, client_ip):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="CAPTCHA invalide ou expiré"
+        )
+
+    session_id = req.session_id
+
+    if session_id not in _recovery_key_sessions:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No valid recovery key session. Please start over.",
+        )
+
+    session_data = _recovery_key_sessions[session_id]
+    recovery_key_hash = session_data["key_hash"]
+
+    def _create_user_with_recovery():
+        conn = get_db()
+        cursor = conn.cursor()
+
+        # Check username availability
+        cursor.execute("SELECT id FROM users WHERE username = ?", (req.username,))
+        if cursor.fetchone():
+            conn.close()
+            return {"error": "Username already taken"}
+
+        # Hash password
+        hashed_password = get_password_hash(req.password)
+
+        # Create user with recovery key hash
+        cursor.execute(
+            "INSERT INTO users (username, password_hash, recovery_key_hash) VALUES (?, ?, ?)",
+            (req.username, hashed_password, recovery_key_hash),
+        )
+        conn.commit()
+        user_id = cursor.lastrowid
+        conn.close()
+
+        return {"user_id": user_id}
+
+    result = await asyncio.to_thread(_create_user_with_recovery)
+    if "error" in result:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result["error"],
+        )
+
+    user_id = result["user_id"]
+
+    # Clean up session
+    del _recovery_key_sessions[session_id]
+
+    # Create token
     token = create_access_token(user_id)
 
     return LoginResponse(

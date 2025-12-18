@@ -26,9 +26,16 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
+            recovery_key_hash TEXT,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
+    # Backfill recovery_key_hash column for existing databases
+    cursor.execute("PRAGMA table_info(users)")
+    user_columns = [row[1] for row in cursor.fetchall()]
+    if "recovery_key_hash" not in user_columns:
+        cursor.execute("ALTER TABLE users ADD COLUMN recovery_key_hash TEXT")
 
     # Zone types table (dynamic list of severities)
     cursor.execute(

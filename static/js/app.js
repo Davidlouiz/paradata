@@ -1024,10 +1024,9 @@ const APP = (() => {
                 const registerForm = document.getElementById('register-form');
                 if (loginForm) loginForm.style.display = 'none';
                 if (registerForm) registerForm.style.display = 'block';
-                const regUser = document.getElementById('register-username');
-                regUser?.focus();
-                // Charge le CAPTCHA
-                await loadCaptcha();
+
+                // Initialize Step 1: Generate recovery key
+                await startRecoveryKeyRegistration();
             });
         }
 
@@ -1042,6 +1041,257 @@ const APP = (() => {
                 const userEl = document.getElementById('login-username');
                 userEl?.focus();
             });
+        }
+
+        // ========== RECOVERY KEY REGISTRATION FLOW ==========
+
+        // Store session data for multi-step registration
+        window._recoveryKeySession = {
+            session_id: null,
+            recovery_key: null,
+            verified: false,
+        };
+
+        // Step 1 handlers
+        const btnRegisterStep1Next = document.getElementById('btn-register-step1-next');
+        if (btnRegisterStep1Next) {
+            btnRegisterStep1Next.addEventListener('click', (e) => {
+                e.preventDefault();
+                showRegisterStep(2);
+            });
+        }
+
+        const btnRegisterCancel = document.getElementById('btn-register-cancel');
+        if (btnRegisterCancel) {
+            btnRegisterCancel.addEventListener('click', (e) => {
+                e.preventDefault();
+                UI.hideLoginModal();
+                resetRecoveryKeyRegistration();
+            });
+        }
+
+        const btnCopyKey = document.getElementById('btn-copy-key');
+        if (btnCopyKey) {
+            btnCopyKey.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const keyText = document.getElementById('register-key-text')?.textContent;
+                if (keyText && navigator.clipboard) {
+                    try {
+                        await navigator.clipboard.writeText(keyText);
+                        UI.notify('Clé copiée dans le presse-papier', 'success');
+                    } catch (err) {
+                        console.error('Copy failed', err);
+                        UI.notify('Échec de la copie', 'error');
+                    }
+                }
+            });
+        }
+
+        const btnDownloadKey = document.getElementById('btn-download-key');
+        if (btnDownloadKey) {
+            btnDownloadKey.addEventListener('click', (e) => {
+                e.preventDefault();
+                const keyText = document.getElementById('register-key-text')?.textContent;
+                if (keyText) {
+                    const blob = new Blob([`Ma clé de sécurité Zones Parapente\n\n${keyText}\n\nConservez cette clé en lieu sûr. Elle ne peut pas être réaffichée.`], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'zones-parapente-recovery-key.txt';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    UI.notify('Clé téléchargée', 'success');
+                }
+            });
+        }
+
+        // Step 2 handlers
+        const btnRegisterStep2Verify = document.getElementById('btn-register-step2-verify');
+        if (btnRegisterStep2Verify) {
+            btnRegisterStep2Verify.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const enteredKey = document.getElementById('register-key-verify')?.value.trim();
+                if (!enteredKey) {
+                    UI.showAuthMessage('Veuillez saisir la clé', true);
+                    return;
+                }
+
+                // Verify with backend
+                try {
+                    await API.registerVerifyKey(window._recoveryKeySession.session_id, enteredKey);
+                    window._recoveryKeySession.verified = true;
+
+                    // Hide error, show step 3
+                    const errorEl = document.getElementById('register-key-verify-error');
+                    if (errorEl) errorEl.style.display = 'none';
+
+                    showRegisterStep(3);
+                    // Load CAPTCHA for step 3
+                    await loadCaptcha();
+                } catch (err) {
+                    // Show error
+                    const errorEl = document.getElementById('register-key-verify-error');
+                    if (errorEl) {
+                        errorEl.textContent = err?.message || 'La clé ne correspond pas';
+                        errorEl.style.display = 'block';
+                    }
+                }
+            });
+        }
+
+        const btnRegisterStep2Back = document.getElementById('btn-register-step2-back');
+        if (btnRegisterStep2Back) {
+            btnRegisterStep2Back.addEventListener('click', (e) => {
+                e.preventDefault();
+                showRegisterStep(1);
+            });
+        }
+
+        // Step 3 handlers
+        const btnRegisterStep3Complete = document.getElementById('btn-register-step3-complete');
+        if (btnRegisterStep3Complete) {
+            btnRegisterStep3Complete.addEventListener('click', async (e) => {
+                e.preventDefault();
+
+                const username = document.getElementById('register-username-step3')?.value.trim();
+                const password = document.getElementById('register-password-step3')?.value;
+                const confirm = document.getElementById('register-password-confirm-step3')?.value;
+                const captchaAnswer = parseInt(document.getElementById('captcha-answer')?.value, 10);
+
+                if (!username || !password) {
+                    UI.showAuthMessage('Champs requis manquants', true);
+                    return;
+                }
+                if (password !== confirm) {
+                    UI.showAuthMessage('Les mots de passe ne correspondent pas', true);
+                    return;
+                }
+                if (isNaN(captchaAnswer) || !window._currentCaptchaToken) {
+                    UI.showAuthMessage('Veuillez résoudre le CAPTCHA', true);
+                    return;
+                }
+
+                try {
+                    const userData = await API.registerComplete(
+                        window._recoveryKeySession.session_id,
+                        username,
+                        password,
+                        window._currentCaptchaToken,
+                        captchaAnswer
+                    );
+
+                    AppState.setCurrentUser(userData);
+                    UI.notify('Compte créé! Vous êtes connecté.', 'success');
+                    await refreshQuotaPanel();
+
+                    const state = AppState.getState();
+                    if (state.mode !== 'VIEW') {
+                        await cancelEdit(true);
+                    }
+                    AppState.deselectObject();
+                    restyleAllLayers();
+
+                    UI.hideLoginModal();
+                    resetRecoveryKeyRegistration();
+                } catch (err) {
+                    UI.showAuthMessage(err?.message || 'Inscription impossible', true);
+                    // Reload CAPTCHA on error
+                    await loadCaptcha();
+                }
+            });
+        }
+
+        const btnRegisterStep3Back = document.getElementById('btn-register-step3-back');
+        if (btnRegisterStep3Back) {
+            btnRegisterStep3Back.addEventListener('click', (e) => {
+                e.preventDefault();
+                showRegisterStep(2);
+            });
+        }
+
+        /**
+         * Start recovery key registration - Step 1
+         */
+        async function startRecoveryKeyRegistration() {
+            resetRecoveryKeyRegistration();
+            showRegisterStep(1);
+
+            // Show loading spinner
+            const spinner = document.getElementById('register-loading-spinner');
+            const keyDisplay = document.getElementById('register-key-display');
+            const buttons = document.getElementById('register-buttons-step1');
+
+            if (spinner) spinner.style.display = 'block';
+            if (keyDisplay) keyDisplay.style.display = 'none';
+            if (buttons) buttons.style.display = 'none';
+
+            try {
+                const data = await API.registerInit();
+                window._recoveryKeySession.session_id = data.session_id;
+                window._recoveryKeySession.recovery_key = data.recovery_key;
+
+                // Display the key
+                const keyTextEl = document.getElementById('register-key-text');
+                if (keyTextEl) keyTextEl.textContent = data.recovery_key;
+
+                // Hide spinner, show key
+                if (spinner) spinner.style.display = 'none';
+                if (keyDisplay) keyDisplay.style.display = 'block';
+                if (buttons) buttons.style.display = 'flex';
+            } catch (err) {
+                UI.showAuthMessage('Impossible de générer la clé. Réessayez.', true);
+                console.error('Failed to init recovery key', err);
+            }
+        }
+
+        /**
+         * Show a specific step in the registration process
+         */
+        function showRegisterStep(step) {
+            const step1 = document.getElementById('register-step-1');
+            const step2 = document.getElementById('register-step-2');
+            const step3 = document.getElementById('register-step-3');
+
+            if (step1) step1.style.display = step === 1 ? 'block' : 'none';
+            if (step2) step2.style.display = step === 2 ? 'block' : 'none';
+            if (step3) step3.style.display = step === 3 ? 'block' : 'none';
+
+            // Clear verification input when returning to step 2
+            if (step === 2) {
+                const verifyInput = document.getElementById('register-key-verify');
+                if (verifyInput) verifyInput.value = '';
+                const errorEl = document.getElementById('register-key-verify-error');
+                if (errorEl) errorEl.style.display = 'none';
+            }
+        }
+
+        /**
+         * Reset recovery key registration state
+         */
+        function resetRecoveryKeyRegistration() {
+            window._recoveryKeySession = {
+                session_id: null,
+                recovery_key: null,
+                verified: false,
+            };
+
+            // Clear all fields
+            const verifyInput = document.getElementById('register-key-verify');
+            if (verifyInput) verifyInput.value = '';
+
+            const usernameInput = document.getElementById('register-username-step3');
+            if (usernameInput) usernameInput.value = '';
+
+            const passwordInput = document.getElementById('register-password-step3');
+            if (passwordInput) passwordInput.value = '';
+
+            const confirmInput = document.getElementById('register-password-confirm-step3');
+            if (confirmInput) confirmInput.value = '';
+
+            const captchaInput = document.getElementById('captcha-answer');
+            if (captchaInput) captchaInput.value = '';
         }
 
         const loginForm = document.getElementById('login-form');
@@ -1063,38 +1313,8 @@ const APP = (() => {
             });
         }
 
-        const registerForm = document.getElementById('register-form');
-        if (registerForm) {
-            registerForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const username = document.getElementById('register-username')?.value.trim();
-                const password = document.getElementById('register-password')?.value;
-                const confirm = document.getElementById('register-password-confirm')?.value;
-                const captchaAnswer = parseInt(document.getElementById('captcha-answer')?.value, 10);
-
-                if (!username || !password) {
-                    UI.showAuthMessage('Champs requis manquants', true);
-                    return;
-                }
-                if (password !== confirm) {
-                    UI.showAuthMessage('Les mots de passe ne correspondent pas', true);
-                    return;
-                }
-                if (isNaN(captchaAnswer) || !window._currentCaptchaToken) {
-                    UI.showAuthMessage('Veuillez résoudre le CAPTCHA', true);
-                    return;
-                }
-
-                try {
-                    await register(username, password, window._currentCaptchaToken, captchaAnswer);
-                    UI.hideLoginModal();
-                } catch (err) {
-                    UI.showAuthMessage(err?.message || 'Inscription impossible', true);
-                    // Recharge un nouveau CAPTCHA en cas d'erreur
-                    await loadCaptcha();
-                }
-            });
-        }
+        // Note: Register form now uses multi-step handlers above (Step 1, 2, 3)
+        // No submit handler needed
 
         // Bouton refresh CAPTCHA
         const btnRefreshCaptcha = document.getElementById('btn-refresh-captcha');

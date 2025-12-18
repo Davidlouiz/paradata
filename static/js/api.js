@@ -82,6 +82,45 @@ const API = {
         return res.data;
     },
 
+    // ========== Recovery Key Registration Flow ==========
+
+    async registerInit() {
+        /**
+         * Step 1: Generate recovery key
+         * Returns: { session_id, recovery_key }
+         */
+        const res = await this.request('POST', '/auth/register/init', {});
+        return res.data;
+    },
+
+    async registerVerifyKey(session_id, recovery_key) {
+        /**
+         * Step 2: Verify recovery key was saved by user
+         */
+        const res = await this.request('POST', '/auth/register/verify-key', {
+            session_id,
+            recovery_key,
+        });
+        return res.data;
+    },
+
+    async registerComplete(session_id, username, password, captcha_token, captcha_answer) {
+        /**
+         * Step 3: Complete account creation
+         * Returns: { id, username, token, created_at }
+         */
+        const res = await this.request('POST', '/auth/register/complete', {
+            session_id,
+            username,
+            password,
+            captcha_token,
+            captcha_answer,
+        });
+        this.token = res.data.token;
+        localStorage.setItem('token', this.token);
+        return res.data;
+    },
+
     async getCaptchaChallenge() {
         const res = await this.request('GET', '/captcha/challenge');
         return res; // { token, question }

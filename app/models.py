@@ -18,6 +18,41 @@ class RegisterRequest(BaseModel):
     captcha_answer: int
 
 
+class RegisterInitRequest(BaseModel):
+    """Initiate account creation - returns recovery key"""
+
+    pass
+
+
+class RegisterInitResponse(BaseModel):
+    success: bool
+    data: Optional[dict] = None  # { recovery_key: "XXXX-XXXX-..." }
+    error: Optional[str] = None
+
+
+class RegisterVerifyKeyRequest(BaseModel):
+    """Verify the recovery key was saved"""
+
+    session_id: str
+    recovery_key: str  # User-entered key, with or without dashes
+
+
+class RegisterVerifyKeyResponse(BaseModel):
+    success: bool
+    data: Optional[dict] = None  # Empty if verified
+    error: Optional[str] = None
+
+
+class RegisterCompleteRequest(BaseModel):
+    """Complete account creation with username and password"""
+
+    session_id: str
+    username: str
+    password: str
+    captcha_token: str
+    captcha_answer: int
+
+
 class LoginResponse(BaseModel):
     success: bool
     data: Optional[dict] = None
