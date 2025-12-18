@@ -44,8 +44,8 @@ def _geometry_intersects_existing(
 ) -> bool:
     """Retourne True si la nouvelle géométrie intersecte une géométrie existante du même type non supprimée.
 
-    Erodes both geometries by ~10cm (0.00001°) to tolerate boundary contacts.
-    Zones of different types can overlap; only zones of the same type cannot.
+    Érode les deux géométries d'environ ~10 cm (0,00001°) pour tolérer les contacts de limite.
+    Les zones de types différents peuvent se chevaucher ; seules les zones du même type ne peuvent pas.
     """
     AREA_EPSILON = 1e-10  # tolerate tiny numeric overlaps
     BUFFER_DISTANCE = 0.00001  # ~10cm buffer for boundary tolerance
@@ -396,7 +396,7 @@ async def get_zone(object_id: int):
 
     if not row:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Object not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Zone non trouvée."
         )
 
     return SingleZoneResponse(success=True, data=serialize_zone(row))
@@ -416,7 +416,7 @@ async def create_zone(req: ZoneCreate, user: dict = Depends(require_login)):
     if not req.geometry or req.geometry.get("type") not in ["Polygon", "MultiPolygon"]:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Invalid geometry: must be Polygon or MultiPolygon",
+            detail="Géométrie invalide : doit être un Polygon ou MultiPolygon",
         )
 
     conn = get_db()
@@ -489,7 +489,7 @@ async def checkout_object(object_id: int, user: dict = Depends(require_login)):
     if not obj:
         conn.close()
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Object not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Zone non trouvée."
         )
 
     # Check if already locked by someone else
@@ -554,14 +554,14 @@ async def release_object(object_id: int, user: dict = Depends(require_login)):
     if not obj:
         conn.close()
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Object not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Zone non trouvée."
         )
 
     # Check if locked by this user
     if obj["locked_by"] != user["id"]:
         conn.close()
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Not locked by you"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Non verrouillée par vous"
         )
 
     # Release lock
@@ -605,14 +605,15 @@ async def update_zone(
     if not obj:
         conn.close()
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Object not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Zone non trouvée."
         )
 
     # Check lock
     if obj["locked_by"] != user["id"]:
         conn.close()
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Object not locked by you"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Zone non verrouillée par vous",
         )
 
     # Check lock expiry
@@ -621,7 +622,7 @@ async def update_zone(
         if lock_time and lock_time < datetime.now(timezone.utc):
             conn.close()
             raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, detail="Lock expired"
+                status_code=status.HTTP_409_CONFLICT, detail="Verrou expiré"
             )
 
     # Update object
@@ -645,7 +646,7 @@ async def update_zone(
             conn.close()
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Invalid geometry",
+                detail="Géométrie invalide",
             )
         # Prevent overlapping zones of the same type, excluding self
         if _geometry_intersects_existing(
@@ -759,7 +760,7 @@ async def delete_zone(object_id: int, user: dict = Depends(require_login)):
     if not obj:
         conn.close()
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Object not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Zone non trouvée."
         )
 
     grace_delete = _is_within_creation_grace(obj, user["id"], GRACE_DELETE_MINUTES)

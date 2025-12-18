@@ -103,7 +103,7 @@ def require_login(user: Optional[dict] = Depends(get_current_user)):
     """Dépendance pour exiger l’authentification."""
     if user is None:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Non authentifié"
         )
     return user
 
@@ -138,7 +138,7 @@ async def login(req: LoginRequest):
         record_login_attempt(req.username, False)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password",
+            detail="Nom d'utilisateur ou mot de passe invalide",
         )
 
     try:
@@ -148,7 +148,7 @@ async def login(req: LoginRequest):
         print(f"[auth.login] password verification error: {exc}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal error during authentication",
+            detail="Erreur interne lors de l'authentification",
         )
 
     if not valid:
@@ -170,7 +170,7 @@ async def login(req: LoginRequest):
         remaining_attempts = MAX_LOGIN_ATTEMPTS - failed_count
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid username or password. {remaining_attempts} attempt(s) remaining.",
+            detail=f"Nom d'utilisateur ou mot de passe invalide. {remaining_attempts} tentative(s) restante(s).",
         )
 
     # Successful login
@@ -255,7 +255,8 @@ async def register(req: RegisterRequest, request: Request):
     user_id = await asyncio.to_thread(_create_user)
     if user_id is None:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Username already taken"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ce nom d'utilisateur est déjà utilisé",
         )
 
     # Return token
@@ -279,7 +280,7 @@ _recovery_key_sessions = {}
 
 
 def _generate_recovery_key() -> str:
-    """Generate a 128-bit recovery key, returned as 32 hex chars, formatted as XXXX-XXXX-..."""
+    """Générer une clé de récupération 128 bits, retournée comme 32 caractères hex, formatée comme XXXX-XXXX-..."""
     random_bytes = secrets.token_bytes(16)  # 128 bits
     hex_key = random_bytes.hex().upper()  # 32 hex chars
     # Format as XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX (8 groups of 4)
@@ -288,18 +289,18 @@ def _generate_recovery_key() -> str:
 
 
 def _normalize_recovery_key(key: str) -> str:
-    """Remove dashes and spaces, convert to uppercase."""
+    """Supprimer les tirets et espaces, convertir en majuscules."""
     return key.replace("-", "").replace(" ", "").upper()
 
 
 def _hash_recovery_key(key: str) -> str:
-    """Hash recovery key using bcrypt (same as password)."""
+    """Hacher la clé de récupération en utilisant bcrypt (comme le mot de passe)."""
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(key.encode(), salt).decode()
 
 
 def _cleanup_expired_sessions():
-    """Remove expired recovery key sessions."""
+    """Supprimer les sessions de clé de récupération expirées."""
     now = datetime.utcnow()
     expired_keys = [
         sid
@@ -313,8 +314,8 @@ def _cleanup_expired_sessions():
 @router.post("/register/init", response_model=RegisterInitResponse)
 async def register_init(req: RegisterInitRequest):
     """
-    Step 1: Generate a recovery key for account creation.
-    Returns a unique session ID and the recovery key to display.
+    Étape 1 : Générer une clé de récupération pour la création de compte.
+    Retourne un ID de session unique et la clé de récupération à afficher.
     """
     _cleanup_expired_sessions()
 
@@ -343,8 +344,8 @@ async def register_init(req: RegisterInitRequest):
 @router.post("/register/verify-key", response_model=RegisterVerifyKeyResponse)
 async def register_verify_key(req: RegisterVerifyKeyRequest):
     """
-    Step 2: Verify that the user correctly entered the recovery key.
-    This ensures they saved it before proceeding.
+    Étape 2 : Vérifier que l'utilisateur a correctement saisi la clé de récupération.
+    Cela garantit qu'il l'a sauvegardée avant de continuer.
     """
     _cleanup_expired_sessions()
 
@@ -353,7 +354,7 @@ async def register_verify_key(req: RegisterVerifyKeyRequest):
     if session_id not in _recovery_key_sessions:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Recovery key session expired or invalid",
+            detail="Session de clé de récupération expirée ou invalide",
         )
 
     session_data = _recovery_key_sessions[session_id]
@@ -362,7 +363,7 @@ async def register_verify_key(req: RegisterVerifyKeyRequest):
     if user_key != session_data["key_raw"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Recovery key does not match. Please try again.",
+            detail="La clé de récupération ne correspond pas. Veuillez réessayer.",
         )
 
     # Key verified! Session is now ready for final registration
@@ -375,8 +376,8 @@ async def register_verify_key(req: RegisterVerifyKeyRequest):
 @router.post("/register/complete", response_model=LoginResponse)
 async def register_complete(req: RegisterCompleteRequest, request: Request):
     """
-    Step 3: Complete account creation with username, password, and verified recovery key.
-    The recovery key must have been verified in step 2.
+    Étape 3 : Terminer la création de compte avec nom d'utilisateur, mot de passe et clé de récupération vérifiée.
+    La clé de récupération doit avoir été vérifiée à l'étape 2.
     """
     _cleanup_expired_sessions()
 
@@ -392,7 +393,7 @@ async def register_complete(req: RegisterCompleteRequest, request: Request):
     if session_id not in _recovery_key_sessions:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No valid recovery key session. Please start over.",
+            detail="Aucune session de clé de récupération valide. Veuillez recommencer.",
         )
 
     session_data = _recovery_key_sessions[session_id]
@@ -406,7 +407,7 @@ async def register_complete(req: RegisterCompleteRequest, request: Request):
         cursor.execute("SELECT id FROM users WHERE username = ?", (req.username,))
         if cursor.fetchone():
             conn.close()
-            return {"error": "Username already taken"}
+            return {"error": "Ce nom d'utilisateur est déjà utilisé"}
 
         # Hash password
         hashed_password = get_password_hash(req.password)
@@ -451,9 +452,9 @@ async def register_complete(req: RegisterCompleteRequest, request: Request):
 @router.post("/recover-password", response_model=LoginResponse)
 async def recover_password(req: RecoverPasswordRequest):
     """
-    Reset account (username + password) using recovery key.
-    The recovery key is the unique identifier - proof of account ownership.
-    Allows changing both username and password.
+    Réinitialiser le compte (nom d'utilisateur + mot de passe) en utilisant la clé de récupération.
+    La clé de récupération est l'identifiant unique - preuve de propriété du compte.
+    Permet de changer à la fois le nom d'utilisateur et le mot de passe.
     """
 
     def _reset_account():

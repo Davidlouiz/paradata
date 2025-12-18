@@ -39,8 +39,8 @@ class RegisterVerifyKeyRequest(BaseModel):
 
 class RegisterVerifyKeyResponse(BaseModel):
     success: bool
-    data: Optional[dict] = None  # Empty if verified
-    error: Optional[str] = None
+    data: Optional[dict] = None  # Vide si vérifié
+    error: Optional[str] = None  # Message d'erreur en français si nécessaire
 
 
 class RegisterCompleteRequest(BaseModel):
