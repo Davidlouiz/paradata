@@ -843,6 +843,26 @@ const UI = (() => {
         }
     }
 
+    // Initialisation: ajouter le gestionnaire de focus pour le textarea sur mobile
+    function initMobileFocusHandlers() {
+        const textarea = document.getElementById('form-description');
+        if (textarea) {
+            textarea.addEventListener('focus', () => {
+                // Sur mobile, quand le clavier s'ouvre, scroller pour que le textarea reste visible
+                setTimeout(() => {
+                    textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 300); // Petit délai pour laisser le clavier s'ouvrir
+            });
+        }
+    }
+
+    // Appeler l'initialisation au chargement
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initMobileFocusHandlers);
+    } else {
+        initMobileFocusHandlers();
+    }
+
     return {
         showDrawerDetails,
         showDrawerForm,
