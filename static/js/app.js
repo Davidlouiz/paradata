@@ -13,6 +13,106 @@ const APP = (() => {
     let lastHitIndex = -1;
 
     /**
+     * Ajouter le contrôle de géolocalisation
+     */
+    function addGeolocateControl() {
+        const GeolocateControl = L.Control.extend({
+            options: {
+                position: 'bottomright'
+            },
+            onAdd: function (map) {
+                const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+                const button = L.DomUtil.create('a', 'leaflet-control-geolocate', container);
+                button.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="6"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>';
+                button.href = '#';
+                button.title = 'Me localiser';
+                button.setAttribute('role', 'button');
+                button.setAttribute('aria-label', 'Me localiser');
+
+                L.DomEvent.disableClickPropagation(button);
+                L.DomEvent.on(button, 'click', function (e) {
+                    L.DomEvent.preventDefault(e);
+                    geolocateUser(button);
+                });
+
+                return container;
+            }
+        });
+
+        map.addControl(new GeolocateControl());
+    }
+
+    /**
+     * Géolocaliser l'utilisateur et recentrer la carte
+     */
+    function geolocateUser(button) {
+        if (!navigator.geolocation) {
+            alert('La géolocalisation n\'est pas supportée par votre navigateur.');
+            return;
+        }
+
+        button.classList.add('loading');
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                button.classList.remove('loading');
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                const accuracy = position.coords.accuracy;
+
+                // Recentrer la carte sur la position
+                map.setView([lat, lng], 14);
+
+                // Ajouter un marqueur temporaire
+                const marker = L.marker([lat, lng], {
+                    icon: L.divIcon({
+                        className: 'user-location-marker',
+                        html: '<div style="background: #4285F4; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);"></div>',
+                        iconSize: [22, 22],
+                        iconAnchor: [11, 11]
+                    })
+                }).addTo(map);
+
+                // Ajouter un cercle de précision
+                const circle = L.circle([lat, lng], {
+                    radius: accuracy,
+                    color: '#4285F4',
+                    fillColor: '#4285F4',
+                    fillOpacity: 0.1,
+                    weight: 1
+                }).addTo(map);
+
+                // Retirer le marqueur et le cercle après 10 secondes
+                setTimeout(() => {
+                    map.removeLayer(marker);
+                    map.removeLayer(circle);
+                }, 10000);
+            },
+            (error) => {
+                button.classList.remove('loading');
+                let message = 'Impossible de vous localiser.';
+                switch (error.code) {
+                    case error.PERMISSION_DENIED:
+                        message = 'Vous avez refusé l\'accès à votre position.';
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        message = 'Position indisponible.';
+                        break;
+                    case error.TIMEOUT:
+                        message = 'La demande de localisation a expiré.';
+                        break;
+                }
+                alert(message);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            }
+        );
+    }
+
+    /**
      * Initialiser l'application
      */
     async function init() {
@@ -93,6 +193,9 @@ const APP = (() => {
         } catch (e) {
             console.warn('Failed to add scale control:', e);
         }
+
+        // Add geolocate control (top-right)
+        addGeolocateControl();
 
         // Initialiser les modules
         DRAW.init(map);

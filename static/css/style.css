@@ -199,6 +199,64 @@ body {
 
 /* ========== Map ========== */
 
+/* Bouton de géolocalisation */
+.leaflet-bar.leaflet-control:has(.leaflet-control-geolocate) {
+    border-radius: 50% !important;
+    overflow: visible !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px !important;
+    height: 34px !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.leaflet-control-geolocate {
+    background: white;
+    border: 2px solid rgba(0, 0, 0, 0.2) !important;
+    border-radius: 50% !important;
+    cursor: pointer;
+    width: 34px !important;
+    height: 34px !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    transition: all 0.2s;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.15) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 34px !important;
+    box-sizing: border-box !important;
+}
+
+.leaflet-control-geolocate:hover {
+    background: #f4f4f4;
+    border-color: rgba(0, 0, 0, 0.3);
+}
+
+.leaflet-control-geolocate:active {
+    background: #e8e8e8;
+}
+
+.leaflet-control-geolocate.loading {
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
 #map {
     width: 100%;
     height: calc(100vh - 60px);
