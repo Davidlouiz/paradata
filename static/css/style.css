@@ -232,6 +232,13 @@ body {
     box-sizing: border-box !important;
 }
 
+/* Ajustement mobile pour le bouton de géolocalisation */
+@media (max-width: 768px) {
+    .leaflet-bar.leaflet-control:has(.leaflet-control-geolocate) {
+        margin-bottom: 60px !important;
+    }
+}
+
 .leaflet-control-geolocate:hover {
     background: #f4f4f4;
     border-color: rgba(0, 0, 0, 0.3);
