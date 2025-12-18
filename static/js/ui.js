@@ -692,7 +692,8 @@ const UI = (() => {
                     notify('Type ajouté', 'success');
                     form.remove();
                     await refreshZoneTypesEverywhere();
-                    // Don't rebuild modal - just remove the form
+                    // Rebuild the list with handlers
+                    showZoneTypesModal();
                 } else {
                     notify(res?.error || 'Échec de la création', 'error');
                 }
