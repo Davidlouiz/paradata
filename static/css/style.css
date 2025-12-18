@@ -696,6 +696,7 @@ body {
     display: flex;
     gap: 10px;
     align-items: center;
+    justify-content: flex-end;
     margin-top: 8px;
     flex-wrap: wrap;
     /* allow wrapping to avoid horizontal overflow */
@@ -1156,7 +1157,7 @@ body {
     }
 
     .drawer {
-        height: 42vh;
+        height: 45vh;
     }
 
     .top-bar h1 {

@@ -5,6 +5,7 @@
 const APP = (() => {
     let map = null;
     let quotaHoldActive = false; // Affiche les plafonds uniquement quand Q est enfoncée
+    let counterHoldActive = false; // Affiche le compteur de zones uniquement quand F8 est enfoncée
     let zoneLayers = {}; // id -> Leaflet layer
     let stateUnsubscribe = null;
     let pollingIntervalId = null;
@@ -368,7 +369,7 @@ const APP = (() => {
             const el = document.getElementById('map-counter');
             if (!el) return;
             const n = typeof count === 'number' ? count : Object.keys(zoneLayers).length;
-            if (n > 0) {
+            if (n > 0 && counterHoldActive) {
                 el.textContent = `${n} zone${n > 1 ? 's' : ''} répertoriée${n > 1 ? 's' : ''}`;
                 el.style.display = 'block';
             } else {
@@ -773,6 +774,14 @@ const APP = (() => {
                     } catch (_) {/* silent */ }
                 }
             }
+            // Affichage du compteur de zones avec F8
+            if (e.key === 'F8') {
+                e.preventDefault();
+                if (!counterHoldActive) {
+                    counterHoldActive = true;
+                    updateMapCounter();
+                }
+            }
         });
         document.addEventListener('keyup', (e) => {
             // Cacher dès qu'on relâche F8
@@ -780,11 +789,20 @@ const APP = (() => {
                 quotaHoldActive = false;
                 applyQuotaVisibility();
             }
+            // Cacher le compteur dès qu'on relâche F8
+            if (e.key === 'F8' && counterHoldActive) {
+                counterHoldActive = false;
+                updateMapCounter();
+            }
         });
         window.addEventListener('blur', () => {
             if (quotaHoldActive) {
                 quotaHoldActive = false;
                 applyQuotaVisibility();
+            }
+            if (counterHoldActive) {
+                counterHoldActive = false;
+                updateMapCounter();
             }
         });
         // Bouton Créer
