@@ -12,7 +12,6 @@ from app.models import (
     LoginResponse,
     AuthMeResponse,
     UserResponse,
-    RegisterRequest,
     RegisterInitRequest,
     RegisterInitResponse,
     RegisterVerifyKeyRequest,
@@ -221,56 +220,6 @@ async def quota(user: dict = Depends(require_login)):
             "delete": {"used": breakdown["DELETE"], "limit": DAILY_DELETE_LIMIT},
         },
     }
-
-
-@router.post("/register")
-async def register(req: RegisterRequest, request: Request):
-    """Enregistrer un nouvel utilisateur avec validation CAPTCHA."""
-
-    # Vérifie le CAPTCHA
-    client_ip = request.client.host
-    if not verify_captcha(req.captcha_token, req.captcha_answer, client_ip):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="CAPTCHA invalide ou expiré"
-        )
-
-    def _create_user():
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute("SELECT id FROM users WHERE username = ?", (req.username,))
-        if cursor.fetchone():
-            conn.close()
-            return None
-
-        hashed_password = get_password_hash(req.password)
-        cursor.execute(
-            "INSERT INTO users (username, password_hash) VALUES (?, ?)",
-            (req.username, hashed_password),
-        )
-        conn.commit()
-        user_id = cursor.lastrowid
-        conn.close()
-        return user_id
-
-    user_id = await asyncio.to_thread(_create_user)
-    if user_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Ce nom d'utilisateur est déjà utilisé",
-        )
-
-    # Return token
-    token = create_access_token(user_id)
-
-    return LoginResponse(
-        success=True,
-        data={
-            "id": user_id,
-            "username": req.username,
-            "token": token,
-            "created_at": datetime.utcnow().isoformat(),
-        },
-    )
 
 
 # ============ RECOVERY KEY MANAGEMENT ============

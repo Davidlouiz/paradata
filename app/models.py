@@ -11,13 +11,6 @@ class LoginRequest(BaseModel):
     password: str
 
 
-class RegisterRequest(BaseModel):
-    username: str
-    password: str
-    captcha_token: str
-    captcha_answer: int
-
-
 class RegisterInitRequest(BaseModel):
     """Initiate account creation - returns recovery key"""
 

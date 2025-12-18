@@ -333,23 +333,6 @@ const APP = (() => {
     }
 
     /**
-     * S'inscrire
-     */
-    async function register(username, password, captcha_token, captcha_answer) {
-        const user = await API.register(username, password, captcha_token, captcha_answer);
-        AppState.setCurrentUser(user);
-        UI.notify('Compte créé! Vous êtes connecté.', 'success');
-        await refreshQuotaPanel();
-        const state = AppState.getState();
-        if (state.mode !== 'VIEW') {
-            await cancelEdit(true);
-        }
-        AppState.deselectObject();
-        restyleAllLayers();
-        // TODO: Authentifier sur Socket.IO si implémenté
-    }
-
-    /**
      * Se déconnecter
      */
     async function logout() {

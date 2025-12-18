@@ -70,18 +70,6 @@ const API = {
         return res.data;
     },
 
-    async register(username, password, captcha_token, captcha_answer) {
-        const res = await this.request('POST', '/auth/register', {
-            username,
-            password,
-            captcha_token,
-            captcha_answer
-        });
-        this.token = res.data.token;
-        localStorage.setItem('token', this.token);
-        return res.data;
-    },
-
     // ========== Recovery Key Registration Flow ==========
 
     async registerInit() {
