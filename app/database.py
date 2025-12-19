@@ -72,7 +72,7 @@ def init_db():
         UPDATE zone_types
         SET code = 'DIFFICULT_ACCESS',
             name = 'Zones difficiles d''accès',
-            description = 'Zone où il est difficile de s’y rendre, même pour les secours.',
+            description = 'Zone dont il est difficile de ressortir à pied, sans assistance.',
             color_hex = '#5c6bc0'
         WHERE code IN ('DENSE_VEGETATION', 'DIFFICULT_ACCESS')
         """
