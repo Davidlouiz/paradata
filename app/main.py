@@ -11,6 +11,7 @@ from app.database import init_db, get_db
 from app.api import auth, zones, captcha
 from app.api import danger_types
 from app.services.ws_manager import manager
+from app.config import ALLOWED_ORIGINS, DEBUG
 
 # Initialize database
 init_db()
@@ -25,7 +26,7 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust for production
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

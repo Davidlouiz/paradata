@@ -1,0 +1,25 @@
+# Version simple pour démarrer rapidement (sans Nginx intégré)
+# Utilisez Nginx/Caddy externe ou un reverse proxy existant
+
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: paradata-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      # Volume pour la base de données (persistance)
+      - ./data:/app/data
+    environment:
+      - DATABASE_PATH=/app/data/alerte_parapente.db
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Environnements virtuels
+.venv/
+venv/
+ENV/
+env/
+
+# Base de données (sera dans un volume)
+*.db
+*.db-journal
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+!README.md
+
+# Fichiers de configuration locaux
+.env.local
+.env.development
+
+# Tests
+test_*.py
+tests/
+
+# Déploiement
+deploy.sh
+paradata.service
+nginx-paradata.conf
+docker-compose*.yml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

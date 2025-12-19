@@ -1,0 +1,24 @@
+# Docker Compose pour le développement local
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: paradata-dev
+    restart: unless-stopped
+    ports:
+      # Exposer sur tous les ports pour accès local
+      - "80:8000"      # HTTP sur port 80
+      - "8000:8000"    # Aussi disponible sur 8000
+    volumes:
+      # Monter le code en live pour le hot-reload
+      - ./app:/app/app:ro
+      - ./static:/app/static:ro
+      # Volume pour la base de données
+      - ./data:/app/data
+    environment:
+      - DATABASE_PATH=/app/data/alerte_parapente.db
+      - JWT_SECRET_KEY=dev-secret-key-change-in-production
+      - ALLOWED_ORIGINS=http://paradata.fr,http://localhost,http://127.0.0.1:8000
+      - DEBUG=true
+    command: uvicorn app.main:socket_app --host 0.0.0.0 --port 8000 --reload

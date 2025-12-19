@@ -11,4 +11,3 @@ python-socketio==5.10.0
 python-engineio==4.8.0
 aiofiles==23.2.1
 shapely
-sqlite3

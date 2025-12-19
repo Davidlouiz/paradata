@@ -35,13 +35,14 @@ from app.services.login_attempt import (
     MAX_LOGIN_ATTEMPTS,
 )
 from app.api.captcha import verify_captcha
+from app.config import JWT_SECRET_KEY, JWT_ALGORITHM, JWT_EXPIRE_MINUTES
 
 router = APIRouter()
 
 # JWT settings
-SECRET_KEY = "your-secret-key-change-in-production"  # TODO: Move to env
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30 * 24  # 30 days
+SECRET_KEY = JWT_SECRET_KEY
+ALGORITHM = JWT_ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = JWT_EXPIRE_MINUTES
 
 
 def get_password_hash(password: str) -> str:
