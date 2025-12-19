@@ -82,7 +82,7 @@ class MapObjectGeometry(BaseModel):
 
 class ZoneCreate(BaseModel):
     geometry: dict  # GeoJSON geometry
-    zone_type: str  # DENSE_VEGETATION, REMOTE_AREA
+    zone_type: str  # DIFFICULT_ACCESS, REMOTE_AREA, TAKEOFF, LANDING, PREPARATION_ZONE
     description: Optional[str] = None
 
 

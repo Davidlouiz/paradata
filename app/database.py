@@ -70,8 +70,11 @@ def init_db():
     cursor.execute(
         """
         UPDATE zone_types
-        SET description = 'Zone où la végétation rend difficile l''extraction en cas de posé involontaire.'
-        WHERE code = 'DENSE_VEGETATION'
+        SET code = 'DIFFICULT_ACCESS',
+            name = 'Zones difficiles d''accès',
+            description = 'Zone où il est difficile de s’y rendre, même pour les secours.',
+            color_hex = '#5c6bc0'
+        WHERE code IN ('DENSE_VEGETATION', 'DIFFICULT_ACCESS')
         """
     )
     cursor.execute(
@@ -81,22 +84,67 @@ def init_db():
         WHERE code = 'REMOTE_AREA'
         """
     )
+    cursor.execute(
+        """
+        UPDATE zone_types
+        SET name = 'Décollage',
+            description = 'Zone utilisée pour le décollage des parapentes.',
+            color_hex = '#00c853'
+        WHERE code = 'TAKEOFF'
+        """
+    )
+    cursor.execute(
+        """
+        UPDATE zone_types
+        SET name = 'Atterrissage',
+            description = 'Zone destinée à l''atterrissage des parapentes.',
+            color_hex = '#d500f9'
+        WHERE code = 'LANDING'
+        """
+    )
+    cursor.execute(
+        """
+        UPDATE zone_types
+        SET name = 'Zone de préparation',
+            description = 'Zone pour se préparer, s''équiper ou plier.',
+            color_hex = '#ffd600'
+        WHERE code = 'PREPARATION_ZONE'
+        """
+    )
 
     # Seed default zone types if missing
     cursor.execute(
         """
         INSERT OR IGNORE INTO zone_types (code, name, description, color_hex) VALUES
         (
-            'DENSE_VEGETATION',
-            'Forte végétation',
-            'Zone où la végétation rend difficile l''extraction en cas de posé involontaire.',
-            '#7cb342'
+            'DIFFICULT_ACCESS',
+            'Zones difficiles d''accès',
+            'Zone où il est compliqué ou impossible d''aller facilement, pour les personnes comme pour les secours.',
+            '#5c6bc0'
         ),
         (
             'REMOTE_AREA',
             'Zone reculée',
             'Zone où une disparition peut passer inaperçue et retarder l''arrivée des secours.',
             '#d32f2f'
+        ),
+        (
+            'TAKEOFF',
+            'Décollage',
+            'Zone utilisée pour le décollage des parapentes.',
+            '#00c853'
+        ),
+        (
+            'LANDING',
+            'Atterrissage',
+            'Zone destinée à l''atterrissage des parapentes.',
+            '#d500f9'
+        ),
+        (
+            'PREPARATION_ZONE',
+            'Zone de préparation',
+            'Zone pour se préparer, s''équiper ou plier.',
+            '#ffd600'
         )
         """
     )

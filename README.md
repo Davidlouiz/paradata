@@ -39,7 +39,7 @@ Cette documentation décrit l’API backend FastAPI, son démarrage, l’authent
 
 - Chaque endpoint retourne `{ success, data, error? }`.
 - Les zones attendent du GeoJSON `Polygon` ou `MultiPolygon`.
-- Codes `zone_type` acceptés: `DENSE_VEGETATION`, `REMOTE_AREA` (voir `static/js/ui.js`).
+- Codes `zone_type` acceptés: `DIFFICULT_ACCESS` (Zones difficiles d'accès), `REMOTE_AREA` (Zone reculée), `TAKEOFF` (Décollage), `LANDING` (Atterrissage), `PREPARATION_ZONE` (Zone de préparation) (voir `static/js/ui.js`).
 
 ## Quotas
 
