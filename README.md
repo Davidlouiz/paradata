@@ -1,4 +1,4 @@
-# Alerte Parapente – Documentation FastAPI (FR)
+# paradata.fr – Documentation FastAPI (FR)
 
 Cette documentation décrit l’API backend FastAPI, son démarrage, l’authentification, les quotas, les verrous et les événements temps réel exposés à la SPA.
 

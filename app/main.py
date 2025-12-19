@@ -17,7 +17,7 @@ init_db()
 
 # Create FastAPI app
 app = FastAPI(
-    title="Zones Parapente",
+    title="paradata.fr",
     description="Carte collaborative des zones sensibles pour le parapente, améliorée chaque jour par la communauté des pilotes. Données publiées en OpenData (réutilisation libre).",
     version="0.1.0",
 )
@@ -118,7 +118,7 @@ async def root():
     index_path = os.path.join(static_dir, "index.html")
     if os.path.exists(index_path):
         return FileResponse(index_path, media_type="text/html")
-    return {"message": "Alerte Parapente API - static files not found"}
+    return {"message": "paradata.fr API - static files not found"}
 
 
 if __name__ == "__main__":

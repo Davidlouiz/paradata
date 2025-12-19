@@ -1,4 +1,4 @@
-# Instructions Copilot – Alerte Parapente
+# Instructions Copilot – paradata.fr
 
 - Objectif : SPA de carte des dangers collaborative ; lecture publique, écriture authentifiée avec verrous, quotas et piste d’audit.
 - Stack : FastAPI + wrapper Socket.IO ASGI dans [app/main.py](app/main.py) ; base SQLite ; frontend JS « vanilla » dans [static/js](static/js).

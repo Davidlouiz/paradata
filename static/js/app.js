@@ -1164,11 +1164,11 @@ const APP = (() => {
                 e.preventDefault();
                 const keyText = document.getElementById('register-key-text')?.textContent;
                 if (keyText) {
-                    const blob = new Blob([`Ma clé de sécurité Zones Parapente\n\n${keyText}\n\nConservez cette clé en lieu sûr. Elle ne peut pas être réaffichée.`], { type: 'text/plain' });
+                    const blob = new Blob([`Ma clé de sécurité paradata.fr\n\n${keyText}\n\nConservez cette clé en lieu sûr. Elle ne peut pas être réaffichée.`], { type: 'text/plain' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = 'zones-parapente-recovery-key.txt';
+                    a.download = 'paradata-recovery-key.txt';
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
