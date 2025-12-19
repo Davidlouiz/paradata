@@ -14,15 +14,23 @@ if env_file.exists():
                 os.environ.setdefault(key.strip(), value.strip())
 
 # JWT Configuration
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not JWT_SECRET_KEY or JWT_SECRET_KEY == "your-secret-key-change-in-production":
+    raise ValueError(
+        "CRITICAL: JWT_SECRET_KEY must be set in .env with a strong random value! "
+        "Generate one with: openssl rand -hex 32"
+    )
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_MINUTES = 30 * 24 * 60  # 30 jours
 
 # CORS Configuration
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost").split(",")
 
 # Database
 DATABASE_PATH = os.getenv("DATABASE_PATH", "./alerte_parapente.db")
+
+# Debug mode
+DEBUG = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
 
 # Debug mode
 DEBUG = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")

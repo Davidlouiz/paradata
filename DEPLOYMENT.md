@@ -1,22 +1,22 @@
 # Guide de mise en production paradata.fr
 
-## Prérequis
+## 🎯 Déploiement sur votre VPS
 
-- Serveur Ubuntu/Debian avec accès root
-- Nom de domaine paradata.fr pointant vers le serveur
-- Python 3.8+ installé
+### Prérequis
 
-## Installation rapide
+- ✅ Serveur : `vps525199.ovh.net` (ou IP : 149.202.243.126)
+- ✅ Domaine : `paradata.fr` pointant vers le serveur
+- ✅ Docker et docker-compose installés
+- ✅ Git configuré
 
-### 1. Préparation du serveur
+## 🚀 Installation rapide (recommandé)
+
+### 1. Cloner le projet
 
 ```bash
-# Se connecter au serveur
-ssh user@votre-serveur
-
-# Cloner le projet
-cd /var/www
-sudo git clone https://github.com/votre-repo/alerte-parapente.git paradata
+# Sur votre VPS
+cd /home/david/git
+git clone https://github.com/Davidlouiz/alerte-parapente.git paradata
 cd paradata
 ```
 
@@ -25,14 +25,9 @@ cd paradata
 Créer le fichier `.env` :
 
 ```bash
-sudo nano /var/www/paradata/.env
-```
-
-Contenu minimum :
-
-```env
-# IMPORTANT : Générer une clé secrète forte
-JWT_SECRET_KEY=VOTRE_CLE_SECRETE_ICI
+cat > .env << 'EOF'
+# Générer une clé secrète sécurisée avec : openssl rand -hex 32
+JWT_SECRET_KEY=$(openssl rand -hex 32)
 
 # Domaines autorisés (production)
 ALLOWED_ORIGINS=https://paradata.fr
@@ -41,187 +36,198 @@ ALLOWED_ORIGINS=https://paradata.fr
 DEBUG=false
 
 # Base de données
-DATABASE_PATH=/var/www/paradata/alerte_parapente.db
+DATABASE_PATH=/app/data/alerte_parapente.db
+EOF
 ```
 
-**Générer une clé secrète sécurisée :**
+### 3. Déploiement Docker (2 options)
+
+#### Option A : Mode simple (reverse proxy Nginx existant)
 
 ```bash
-openssl rand -hex 32
+# Utilise docker-compose.simple.yml
+docker compose -f docker-compose.simple.yml up -d
+
+# L'app écoute sur 127.0.0.1:8000
+# À configurer dans votre Nginx/reverse proxy existant
 ```
 
-### 3. Déploiement automatique
+#### Option B : Mode complet (Nginx + SSL intégré - RECOMMANDÉ)
 
 ```bash
-cd /var/www/paradata
-sudo ./deploy.sh
+./deploy-docker.sh
+
+# Le script vous demandera de choisir le mode
+# Sélectionnez l'option 2 (Mode complet)
 ```
 
-### 4. Configuration SSL (Let's Encrypt)
+### 4. Vérification
 
 ```bash
-sudo certbot --nginx -d paradata.fr -d www.paradata.fr
-```
-
-Suivez les instructions et choisissez la redirection HTTPS automatique.
-
-**Note :** Le sous-domaine www.paradata.fr est automatiquement redirigé vers paradata.fr (configuration Nginx).
-
-### 5. Vérification
-
-```bash
-# Statut du service
-sudo systemctl status paradata
+# État des containers
+docker compose ps
 
 # Logs en temps réel
-sudo journalctl -u paradata -f
+docker compose logs -f
 
-# Test du site
+# Test du site (une fois DNS propagé)
 curl https://paradata.fr
 ```
 
-## Commandes utiles
+## 📋 Commandes utiles
 
-### Gestion du service
+### Gestion des containers
 
 ```bash
 # Démarrer
-sudo systemctl start paradata
+docker compose up -d
 
 # Arrêter
-sudo systemctl stop paradata
+docker compose down
 
 # Redémarrer
-sudo systemctl restart paradata
+docker compose restart
 
-# Activer au démarrage
-sudo systemctl enable paradata
-```
+# Logs en temps réel
+docker compose logs -f
 
-### Logs et débogage
-
-```bash
-# Logs de l'application
-sudo journalctl -u paradata -f
-
-# Logs Nginx
-sudo tail -f /var/log/nginx/paradata_error.log
-sudo tail -f /var/log/nginx/paradata_access.log
-
-# Test de configuration Nginx
-sudo nginx -t
+# État des services
+docker compose ps
 ```
 
 ### Sauvegardes
 
 ```bash
 # Sauvegarde de la base de données
-sudo cp /var/www/paradata/alerte_parapente.db \
-    /var/backups/paradata-$(date +%Y%m%d-%H%M%S).db
+cp data/alerte_parapente.db data/alerte_parapente.db.backup-$(date +%Y%m%d)
 
-# Automatiser avec cron (tous les jours à 3h)
-sudo crontab -e
+# Restaurer une sauvegarde
+cp data/alerte_parapente.db.backup-YYYYMMDD data/alerte_parapente.db
+
+# Automatiser les sauvegardes quotidiennes
+crontab -e
 # Ajouter :
-0 3 * * * cp /var/www/paradata/alerte_parapente.db /var/backups/paradata-$(date +\%Y\%m\%d).db
+0 3 * * * cd /home/david/git/paradata && cp data/alerte_parapente.db data/alerte_parapente.db.backup-$(date +\%Y\%m\%d)
 ```
 
 ### Mise à jour du code
 
 ```bash
-cd /var/www/paradata
-sudo git pull
-sudo systemctl restart paradata
+cd /home/david/git/paradata
+git pull
+docker compose up -d --build
 ```
 
-## Sécurité
-
-### Firewall (UFW)
+### Accès à la base de données
 
 ```bash
-sudo ufw allow 22/tcp   # SSH
-sudo ufw allow 80/tcp   # HTTP
-sudo ufw allow 443/tcp  # HTTPS
+# Via le container
+docker compose exec app sqlite3 /app/data/alerte_parapente.db
+
+# Exemples de requêtes utiles :
+# > SELECT COUNT(*) FROM zones;
+# > SELECT * FROM users;
+# >🔒 Sécurité
+
+### Firewall
+
+```bash
+# Autoriser SSH, HTTP, HTTPS
+sudo ufw allow 22/tcp
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
 sudo ufw enable
+
+# Vérifier les règles
+sudo ufw status
 ```
 
-### Permissions
+### Permissions Docker
 
 ```bash
-# Les fichiers doivent appartenir à www-data
-sudo chown -R www-data:www-data /var/www/paradata
+# Vérifier les permissions du répertoire data
+ls -la data/
 
-# La base de données doit être protégée
-sudo chmod 640 /var/www/paradata/alerte_parapente.db
+# Corriger si nécessaire
+chmod -R 755 data/
 ```
 
-## Monitoring
+### Renouvellement SSL automatique
 
-### Vérifier l'utilisation des ressources
+Le container `certbot` renouvelle automatiquement les certificats.
+
+Vérifier manuellement :
 
 ```bash
-# Utilisation mémoire/CPU du service
-systemctl status paradata
-
-# Processus Python
-ps aux | grep uvicorn
+docker compose exec certbot certbot renew --dry-run
 ```
 
-### Renouvellement automatique SSL
+## 📊 Monitoring
 
-Let's Encrypt renouvelle automatiquement les certificats. Tester :
+### Ressources utilisées
+
+```bash
+# Utilisation CPU/Mémoire des containers
+docker stats
+
+# Utilisation disque
+docker system df
+```
+
+### Logs en cas de problème
+
+```bash
+# Logs de l'application
+docker compose logs -f app
+
+# Logs Nginx (mode complet)
+docker compose logs -f nginx
+
+# Logs Certbot (mode complet)
+docker compose logs -f certbotomatiquement les certificats. Tester :
 
 ```bash
 sudo certbot renew --dry-run
 ```
 
-## Dépannage
+## 🐛 Dépannage
 
-### Le service ne démarre pas
+### Port déjà utilisé
 
 ```bash
-# Vérifier les logs
-sudo journalctl -u paradata -n 50
+# Trouver le processus
+sudo lsof -i :80
+sudo lsof -i :443
 
-# Tester manuellement
-cd /var/www/paradata
-sudo -u www-data .venv/bin/uvicorn app.main:socket_app --host 127.0.0.1 --port 8000
+# Ou modifier le port dans docker-compose.yml
+```
+
+### Container ne démarre pas
+
+```bash
+# Voir les erreurs
+docker compose logs app
+
+# Vérifier le fichier .env
+cat .env
+
+# Reconstruire l'image
+docker compose build --no-cache
 ```
 
 ### Erreur 502 Bad Gateway
 
 ```bash
-# Vérifier que le service tourne
-sudo systemctl status paradata
+# Vérifier que le container tourne
+docker compose ps
 
 # Vérifier que le port 8000 écoute
-sudo netstat -tlnp | grep 8000
+docker compose logs app | tail -20
 ```
 
-### Problèmes de WebSocket
-
-Vérifier la configuration Nginx, notamment les en-têtes `Upgrade` et `Connection` dans la section `/socket.io/`.
-
-## Performance
-
-### Augmenter le nombre de workers
-
-Modifier `/etc/systemd/system/paradata.service` :
-
-```ini
-ExecStart=/var/www/paradata/.venv/bin/uvicorn app.main:socket_app --host 127.0.0.1 --port 8000 --workers 4
-```
-
-Formule : `workers = (2 x nombre_coeurs) + 1`
-
-Redémarrer :
+### Permissions sur data/
 
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl restart paradata
+# Corriger les permissions
+chmod -R 755 /home/david/git/paradata/data/
 ```
-
-## Support
-
-- Documentation API : https://paradata.fr/docs
-- Logs : `/var/log/nginx/paradata_*.log`
-- Service : `sudo journalctl -u paradata`

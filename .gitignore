@@ -12,19 +12,22 @@ ENV/
 
 # Environment variables
 .env
+.env.local
+.env.*.local
 
-# Distribution / packaging
-build/
-dist/
-*.egg-info/
+# Database files
+*.sqlite3
+*.sqlite
+*.db
+*.db-journal
+
+# Backups
+data/backup*
+data/*.backup
 
 # Logs
 *.log
 server.log
-
-# SQLite
-*.sqlite3
-*.sqlite
 
 # Editor directories and files
 .vscode/
