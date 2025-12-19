@@ -1,149 +1,125 @@
-# paradata.fr – Documentation FastAPI (FR)
+# paradata.fr
 
-Cette documentation décrit l’API backend FastAPI, son démarrage, l’authentification, les quotas, les verrous et les événements temps réel exposés à la SPA.
+> SPA collaborative de cartographie des zones de parapente
 
-## Démarrage rapide
+**Lien** : https://paradata.fr  
+**Dépôt** : https://github.com/Davidlouiz/paradata
 
-- Environnement Python:
-  ```bash
-  python -m venv .venv
-  source .venv/bin/activate
-  pip install -r requirements.txt
-  ```
-- Lancer le serveur de développement:
-  ```bash
-  uvicorn app.main:socket_app --reload
-  ```
-  - La racine `/` sert la SPA.
-  - Le chemin `/assets` sert les fichiers statiques.
-  - Utiliser l’application `socket_app` pour que les WebSockets Socket.IO fonctionnent.
+## 📋 À propos
 
-## Base de données
+paradata.fr est une plateforme de **lecture publique** et **écriture authentifiée** pour cartographier les zones de parapente (décollages, atterrissages, zones de préparation, accès difficiles, zones isolées).
 
-- Fichier SQLite: `alerte_parapente.db`.
-- Tables: `users`, `zones`, `audit_log`.
-- Suppression logique via champ `deleted_at` (toujours filtrer avec `WHERE deleted_at IS NULL`).
-- Clés étrangères activées.
-- Initialisation: voir `init_db()` et les migrations (fichiers `migrate_*.py`).
+- 🗺️ Carte interactive avec GeoJSON
+- 🔒 Authentification JWT avec quotas quotidiens
+- 🔄 Verrous collaboratifs (15 min) pour éviter les conflits d'édition
+- 📝 Audit complet de toutes les modifications
+- ⚡ WebSocket temps réel (Socket.IO)
 
-## Authentification
+## 🚀 Démarrage local
 
-- Jetons JWT HS256 valables 30 jours.
-- Stockés côté client dans `localStorage['token']`.
-- Envoyés via l’en-tête `Authorization: Bearer <token>`.
-- Mots de passe hashés avec bcrypt.
-- Utilitaires et endpoints d’auth dans `app/api/auth.py`.
-- Toute route d’écriture doit imposer l’auth avec `require_login`.
+```bash
+git clone https://github.com/Davidlouiz/paradata.git
+cd paradata
 
-## Format des réponses
+# Mode développement avec Docker (recommandé)
+docker compose -f docker-compose.dev.yml up -d
 
-- Chaque endpoint retourne `{ success, data, error? }`.
-- Les zones attendent du GeoJSON `Polygon` ou `MultiPolygon`.
-- Codes `zone_type` acceptés: `DIFFICULT_ACCESS` (Zones difficiles d'accès), `REMOTE_AREA` (Zone reculée), `TAKEOFF` (Décollage), `LANDING` (Atterrissage), `PREPARATION_ZONE` (Zone de préparation) (voir `static/js/ui.js`).
+# Ou sans Docker
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:socket_app --reload
+```
 
-## Quotas
+Accédez à **http://localhost** (ou http://paradata.fr si configuré dans `/etc/hosts`)
 
-- Limites par utilisateur et par jour:
-  - CREATE: 15
-  - UPDATE: 5
-  - DELETE: 5
-- Constantes dans `app/services/quota.py` et dérivées de l’historique `audit_log`.
-- `GRACE_DELETE`: restaure un CREATE et ne compte pas dans DELETE.
-- Avant chaque écriture, appeler `check_daily_quota` et retourner `remaining_quota`.
-- Endpoint d’info quotas: `/auth/quota`.
+## 📦 Stack technique
 
-## Verrous d’édition
+| Composant | Technologie |
+|-----------|------------|
+| Backend | FastAPI + Socket.IO |
+| Base de données | SQLite |
+| Frontend | JavaScript vanilla (Leaflet) |
+| Authentification | JWT HS256 (30 jours) |
+| Temps réel | WebSocket (Socket.IO) |
+| Déploiement | Docker + Nginx |
 
-- Acquisition: `POST /zones/{id}/checkout` (durée 15 minutes).
-- Mise à jour (`PUT`) requiert que `locked_by` corresponde à l’utilisateur.
-- Un `PUT` libère automatiquement le verrou.
-- Libération manuelle: `POST /zones/{id}/release`.
-- Verrou expiré: HTTP 409.
-- Statut du verrou: `GET /zones/{id}/lock`.
+## 📚 Documentation
 
-## Règles de géométrie
+- **[DEPLOYMENT-DOCKER.md](DEPLOYMENT-DOCKER.md)** - Déploiement en production
+- **[COMMANDS.md](COMMANDS.md)** - Commandes utiles
+- **[SECURITY.md](SECURITY.md)** - Bonnes pratiques de sécurité
+- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** - Architecture détaillée
 
-- Validation via Shapely.
-- Uniquement `Polygon` et `MultiPolygon`.
-- Garde d’intersection: érosion d’environ ~10 cm de chaque géométrie; blocage des recouvrements au-delà d’un epsilon minuscule.
-- Voir l’implémentation `_geometry_intersects_existing` dans `app/api/zones.py`.
+## 🔐 Sécurité
 
-## Audit
+- ✅ Authentification JWT HS256
+- ✅ Passwords hashés (bcrypt)
+- ✅ CORS restrictif
+- ✅ Quotas par utilisateur (CREATE/UPDATE/DELETE)
+- ✅ Verrous collaboratifs
+- ✅ Audit complet
+- ✅ Suppression logique (soft delete)
 
-- Chaque opération CREATE, UPDATE, DELETE, GRACE_DELETE est enregistrée dans `audit_log`.
-- Les quotas sont calculés à partir de cet historique (pas de table de quotas dédiée).
+Voir [SECURITY.md](SECURITY.md) pour le guide complet.
 
-## Temps réel
+## 📋 Quotas
 
-- Événements Socket.IO émis par le backend:
-  - `zone_created`
-  - `zone_updated`
-  - `zone_deleted`
-  - `zone_locked`
-  - `zone_released`
-- Le backend injecte `sio` avec `set_sio`.
-- `ws_manager` gère la correspondance `sid -> user`.
-- Logs du moteur activés pour le debug.
+Par utilisateur et par jour :
 
-## Frontend (aperçu pour intégration)
+| Action | Limite |
+|--------|--------|
+| CREATE | 15 zones |
+| UPDATE | 5 zones |
+| DELETE | 5 zones |
+| GRACE_DELETE | Restaure 1 CREATE (120 min) |
 
-- État: `AppState` (modes VIEW/DRAW/EDIT, polling des verrous toutes les 5s, cache des quotas).
-- Réseau: wrapper `API` (`static/js/api.js`) ajoute l’en-tête du jeton et retourne le JSON parsé ou lève `{status, message, data}`.
-- Socket: chargeur `SOCKET` (`static/js/socket.js`) authentifie automatiquement et bascule sur le polling si déconnecté.
-- UI: tiroir pour détails/édition; panneau quotas alimenté par `/auth/quota`.
+## 🔄 Verrous collaboratifs
 
-## Flux d’édition des zones
+- Durée : 15 minutes
+- Évite les conflits d'édition
+- Libération automatique après `PUT` ou manuelle via `POST /zones/{id}/release`
+- Consultation du statut : `GET /zones/{id}/lock`
 
-1. Sélectionner une zone.
-2. `checkout` pour verrouiller.
-3. Éditer `geometry` / `zone_type` / `description`.
-4. `PUT` pour mettre à jour (libère le verrou et diffuse l’événement temps réel).
-5. Suppression logique: `DELETE` (diffusée en temps réel).
+## 📝 Format de l'API
 
-## Endpoints principaux
+Chaque réponse : `{ success, data, error? }`
 
-- Auth:
-  - `POST /auth/login` – Connexion et obtention du JWT.
-  - `GET /auth/me` – Infos utilisateur.
-  - `GET /auth/quota` – Quotas restants.
-- Zones:
-  - `GET /zones` – Liste des zones (filtre suppression logique).
-  - `POST /zones` – Création (vérifier quotas et géométrie).
-  - `GET /zones/{id}` – Détails.
-  - `PUT /zones/{id}` – Mise à jour (requiert verrou actif).
-  - `DELETE /zones/{id}` – Suppression logique (peut déclencher GRACE_DELETE).
-  - `POST /zones/{id}/checkout` – Verrouillage.
-  - `POST /zones/{id}/release` – Libération.
-  - `GET /zones/{id}/lock` – Statut du verrou.
+**Types de zones acceptés :**
+- `DIFFICULT_ACCESS` - Zones difficiles d'accès
+- `REMOTE_AREA` - Zone reculée
+- `TAKEOFF` - Décollage
+- `LANDING` - Atterrissage
+- `PREPARATION_ZONE` - Zone de préparation
 
-> Remarque: les routes exactes et les champs peuvent être inspectés dans `app/api/zones.py` et `app/api/auth.py`.
+**Géométrie :** GeoJSON `Polygon` ou `MultiPolygon`
 
-## Débogage
+## 🤝 Contribution
 
-- Middleware de journalisation des 4xx/5xx: voir `app/main.py`.
-- Inspecter les verrous:
-  ```bash
-  sqlite3 alerte_parapente.db "SELECT id, locked_by, lock_expires_at FROM zones;"
-  ```
-- Vérifier les quotas: `GET /auth/quota`.
+Les contributions sont bienvenues !
 
-## Migrations
+```bash
+git checkout -b feature/ma-fonctionnalite
+git add .
+git commit -m "feat: description"
+git push origin feature/ma-fonctionnalite
+```
 
-- Exemples disponibles à la racine: `migrate_*.py`.
-- Exécuter une migration (exemple):
-  ```bash
-  .venv/bin/python migrate_remove_volunteer_coverage.py
-  ```
+Ouvrez une Pull Request.
 
-## Bonnes pratiques pour ajouter un endpoint
+## 📄 Licence
 
-- Inclure le router dans `app/main.py`.
-- Imposer la connexion avec `require_login` pour les écritures.
-- Vérifier les quotas avant toute écriture et retourner `remaining_quota`.
-- Émettre les événements Socket.IO pour synchroniser les clients.
-- Diffuser les événements après `commit` DB.
-- Conserver les filtres `WHERE deleted_at IS NULL` et les vérifications de verrou.
+MIT
+
+## ��‍💻 Auteur
+
+**David Louise** - [@Davidlouiz](https://github.com/Davidlouiz)
 
 ---
 
-Pour toute question, consultez le code source des modules: `app/main.py`, `app/api/auth.py`, `app/api/zones.py`, `app/services/quota.py`, `app/services/ws_manager.py`.
+## 🔗 Liens
+
+- **Site** : https://paradata.fr
+- **Dépôt** : https://github.com/Davidlouiz/paradata
+- **API Docs** : https://paradata.fr/docs
+- **Issues** : https://github.com/Davidlouiz/paradata/issues

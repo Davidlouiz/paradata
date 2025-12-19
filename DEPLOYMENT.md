@@ -16,7 +16,7 @@
 ```bash
 # Sur votre VPS
 cd /home/david/git
-git clone https://github.com/Davidlouiz/alerte-parapente.git paradata
+git clone https://github.com/Davidlouiz/paradata.git paradata
 cd paradata
 ```
 
